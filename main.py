@@ -27,13 +27,34 @@ from core.themes import THEMES
 
 
 def _make_tray_icon() -> QIcon:
-    px = QPixmap(16, 16)
+    """Pill noire avec un point rouge LIVE — comme le widget."""
+    from PyQt6.QtGui import QPainterPath
+    from PyQt6.QtCore import QRectF
+    px = QPixmap(32, 16)
     px.fill(Qt.GlobalColor.transparent)
     p = QPainter(px)
     p.setRenderHint(QPainter.RenderHint.Antialiasing)
-    p.setBrush(QColor("#9146FF"))
+
+    # Fond pill
+    path = QPainterPath()
+    path.addRoundedRect(QRectF(0, 1, 32, 14), 7, 7)
+    p.fillPath(path, QColor(10, 10, 12, 240))
+    pen = QPen(QColor(145, 70, 255, 120))
+    pen.setWidthF(1.0)
+    p.setPen(pen)
+    p.drawPath(path)
+
+    # Point rouge
     p.setPen(Qt.PenStyle.NoPen)
-    p.drawEllipse(2, 2, 12, 12)
+    p.setBrush(QColor("#ff3b30"))
+    p.drawEllipse(5, 5, 6, 6)
+
+    # "GP" en blanc
+    p.setPen(QColor(255, 255, 255, 200))
+    f = QFont("Segoe UI", 6, int(QFont.Weight.Bold))
+    p.setFont(f)
+    p.drawText(14, 12, "GP")
+
     p.end()
     return QIcon(px)
 

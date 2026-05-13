@@ -20,13 +20,14 @@ PLATFORM_NONE    = "none"
 
 
 class PlatformIcon(QWidget):
-    """Draws the real Twitch Glitch logo or YouTube play button — no image files."""
+    """Twitch Glitch logo ou bouton YouTube — aucun fichier image."""
 
-    def __init__(self, platform: str = PLATFORM_TWITCH):
+    def __init__(self, platform: str = PLATFORM_NONE):
         super().__init__()
         self._platform = platform
-        self.setFixedSize(22, 16)
+        self.setFixedSize(18, 14)
         self.setStyleSheet("background: transparent;")
+        self.setVisible(platform != PLATFORM_NONE)
 
     def set_platform(self, platform: str):
         self._platform = platform
@@ -34,7 +35,7 @@ class PlatformIcon(QWidget):
         self.update()
 
     @staticmethod
-    def _rrect(x: float, y: float, w: float, h: float, r: float) -> QPainterPath:
+    def _rr(x, y, w, h, r) -> QPainterPath:
         p = QPainterPath()
         p.addRoundedRect(QRectF(x, y, w, h), r, r)
         return p
@@ -43,53 +44,39 @@ class PlatformIcon(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setPen(Qt.PenStyle.NoPen)
-
         W, H = float(self.width()), float(self.height())
 
         if self._platform == PLATFORM_TWITCH:
-            # ── Twitch "Glitch" logo ──────────────────────────────────
-            # Scaled from official 20×14 viewbox
             sx, sy = W / 20.0, H / 14.0
-
-            # Outer speech-bubble body
             body = QPainterPath()
-            body.moveTo(2 * sx,  0)
-            body.lineTo(18 * sx, 0)
-            body.lineTo(W,       2 * sy)
-            body.lineTo(W,       10 * sy)
-            body.lineTo(16 * sx, 10 * sy)
-            body.lineTo(16 * sx, H)
-            body.lineTo(13 * sx, 10 * sy)
-            body.lineTo(2 * sx,  10 * sy)
-            body.lineTo(0,       8 * sy)
-            body.lineTo(0,       2 * sy)
+            body.moveTo(2*sx, 0);   body.lineTo(18*sx, 0)
+            body.lineTo(W, 2*sy);   body.lineTo(W, 10*sy)
+            body.lineTo(16*sx, 10*sy); body.lineTo(16*sx, H)
+            body.lineTo(13*sx, 10*sy); body.lineTo(2*sx, 10*sy)
+            body.lineTo(0, 8*sy);   body.lineTo(0, 2*sy)
             body.closeSubpath()
             painter.fillPath(body, QColor("#9146FF"))
-
-            # Two white inner bars (the distinctive "eyes")
-            bw, bh = 2.5 * sx, 4 * sy
-            painter.fillPath(self._rrect(4.5 * sx,  2.5 * sy, bw, bh, 1.0), QColor("white"))
-            painter.fillPath(self._rrect(10.5 * sx, 2.5 * sy, bw, bh, 1.0), QColor("white"))
+            bw, bh = 2.5*sx, 4*sy
+            painter.fillPath(self._rr(4.5*sx,  2.5*sy, bw, bh, 1.0), QColor("white"))
+            painter.fillPath(self._rr(10.5*sx, 2.5*sy, bw, bh, 1.0), QColor("white"))
 
         elif self._platform == PLATFORM_YOUTUBE:
-            # ── YouTube play button ───────────────────────────────────
-            painter.fillPath(self._rrect(0, H * 0.1, W, H * 0.8, 2.5), QColor("#FF0000"))
+            painter.fillPath(self._rr(0, H*0.1, W, H*0.8, 2.5), QColor("#FF0000"))
             tri = QPainterPath()
-            tri.moveTo(W * 0.34, H * 0.22)
-            tri.lineTo(W * 0.34, H * 0.78)
-            tri.lineTo(W * 0.76, H * 0.50)
-            tri.closeSubpath()
+            tri.moveTo(W*0.34, H*0.22); tri.lineTo(W*0.34, H*0.78)
+            tri.lineTo(W*0.76, H*0.50); tri.closeSubpath()
             painter.fillPath(tri, QColor("white"))
 
-W_COL = 330
-H_COL = 40
-W_EXP = 310
-H_EXP = 290
-TOP_MARGIN = 14
-RADIUS = 20
-ANIM_MS = 260
-AUTO_COLLAPSE_MS = 8_000
 
+# ── Dimensions ────────────────────────────────────────────────────────────────
+W_COL = 340
+H_COL = 44
+W_EXP = 320
+H_EXP = 310
+TOP_MARGIN = 12
+RADIUS = 22          # vrai pill (H_COL / 2 arrondi)
+ANIM_MS = 280
+AUTO_COLLAPSE_MS = 8_000
 RED_LIVE = "#ff3b30"
 
 
@@ -103,30 +90,19 @@ def _sf(size: int, weight: QFont.Weight = QFont.Weight.Normal) -> QFont:
 
 
 def _luminance(hex_color: str) -> float:
-    """Relative luminance (0=black, 1=white) per WCAG."""
     r, g, b = (_c / 255 for _c in _hex_rgb(hex_color))
     def lin(c): return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
     return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
 
 
-def _safe_game_color(primary: str) -> str:
-    """Return primary if visible on dark bg, else white."""
-    return primary if _luminance(primary) > 0.06 else "#ffffff"
-
-
-def _body_text_color(primary: str) -> str:
-    """Non-game text: white on dark bg. If game tint is very bright, use darker white."""
-    lum = _luminance(primary)
-    # pill bg is always near-black; even a bright tint barely lifts it
-    # → text is always white; just slightly dimmed for calm appearance
-    return "rgba(255,255,255,200)" if lum < 0.6 else "rgba(255,255,255,230)"
+def _safe_color(primary: str) -> str:
+    return primary if _luminance(primary) > 0.05 else "#ffffff"
 
 
 class _DotWidget(QWidget):
-    """8×8 red circle in the layout — animated via QGraphicsOpacityEffect."""
     def __init__(self):
         super().__init__()
-        self.setFixedSize(8, 8)
+        self.setFixedSize(7, 7)
         self._effect = QGraphicsOpacityEffect(self)
         self._effect.setOpacity(1.0)
         self.setGraphicsEffect(self._effect)
@@ -139,7 +115,7 @@ class _DotWidget(QWidget):
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         p.setPen(Qt.PenStyle.NoPen)
         p.setBrush(QColor(RED_LIVE))
-        p.drawEllipse(0, 0, 8, 8)
+        p.drawEllipse(0, 0, 7, 7)
 
 
 class PillWidget(QWidget):
@@ -178,63 +154,63 @@ class PillWidget(QWidget):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
 
-        # ── Collapsed bar ──────────────────────────────────────────────
+        # ── Barre compacte ────────────────────────────────────────────
         bar = QWidget()
         bar.setFixedHeight(H_COL)
         bar.setStyleSheet("background: transparent;")
         bl = QHBoxLayout(bar)
-        bl.setContentsMargins(0, 0, 0, 0)
-        bl.setSpacing(9)
+        bl.setContentsMargins(16, 0, 16, 0)
+        bl.setSpacing(8)
         bl.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
-        # Dot in layout (no longer painted manually)
+        # Dot + LIVE
         self._dot = _DotWidget()
 
-        # LIVE: always red, never changes with theme
         self._live_lbl = QLabel("LIVE")
-        self._live_lbl.setFont(_sf(9, QFont.Weight.Bold))
+        self._live_lbl.setFont(_sf(8, QFont.Weight.Bold))
         self._live_lbl.setStyleSheet(
             f"color: {RED_LIVE}; background: transparent; letter-spacing: 2px;"
         )
 
+        # Séparateur 1 (avant plateforme) — caché si pas connecté
         self._sep1 = self._vsep()
+        self._sep1.setVisible(False)
 
+        # Plateforme + viewers
         self._platform_icon = PlatformIcon(PLATFORM_NONE)
 
         self._viewers_lbl = QLabel("--")
         self._viewers_lbl.setFont(_sf(11, QFont.Weight.DemiBold))
-        self._viewers_lbl.setStyleSheet(
-            f"color: {_body_text_color(self._theme.primary)}; background: transparent;"
-        )
+        self._viewers_lbl.setStyleSheet("color: rgba(255,255,255,210); background: transparent;")
+        self._viewers_lbl.setVisible(False)
 
-        sep2 = self._vsep()
+        # Séparateur 2 (avant jeu)
+        self._sep2 = self._vsep()
 
+        # Jeu + KDA
         self._game_lbl = QLabel()
         self._game_lbl.setFont(_sf(11, QFont.Weight.Bold))
-        self._game_lbl.setStyleSheet(
-            f"color: {_safe_game_color(self._theme.primary)}; background: transparent;"
-        )
+        self._game_lbl.setStyleSheet("color: rgba(255,255,255,120); background: transparent;")
 
         self._kda_lbl = QLabel()
-        self._kda_lbl.setFont(_sf(11))
-        self._kda_lbl.setStyleSheet(
-            f"color: {_body_text_color(self._theme.primary)}; background: transparent;"
-        )
+        self._kda_lbl.setFont(_sf(10))
+        self._kda_lbl.setStyleSheet("color: rgba(255,255,255,160); background: transparent;")
 
-        # Stretch on BOTH sides → content centered in pill
         bl.addStretch()
         bl.addWidget(self._dot)
+        bl.addSpacing(2)
         bl.addWidget(self._live_lbl)
         bl.addWidget(self._sep1)
         bl.addWidget(self._platform_icon)
+        bl.addSpacing(2)
         bl.addWidget(self._viewers_lbl)
-        bl.addWidget(sep2)
+        bl.addWidget(self._sep2)
         bl.addWidget(self._game_lbl)
         bl.addWidget(self._kda_lbl)
         bl.addStretch()
 
-        # ── Expanded panel ─────────────────────────────────────────────
-        self._exp = ExpandedContent(self._theme, self._mock_kda(), self._mock_history())
+        # ── Panneau étendu ────────────────────────────────────────────
+        self._exp = ExpandedContent(self._theme, {}, [])
         self._exp.setVisible(False)
         self._exp.setStyleSheet("background: transparent;")
         self._opacity_fx = QGraphicsOpacityEffect()
@@ -249,33 +225,14 @@ class PillWidget(QWidget):
     def _vsep(self) -> QFrame:
         s = QFrame()
         s.setFrameShape(QFrame.Shape.VLine)
-        s.setFixedSize(1, 14)
-        s.setStyleSheet("background-color: rgba(255,255,255,40); border: none;")
+        s.setFixedSize(1, 12)
+        s.setStyleSheet("background-color: rgba(255,255,255,35); border: none;")
         return s
 
-    def _mock_kda(self) -> dict:
-        from services.game_detector import MOCK_KDA
-        for key, t in THEMES.items():
-            if t is self._theme:
-                return MOCK_KDA.get(key, MOCK_KDA["default"])
-        return MOCK_KDA["default"]
-
-    def _mock_history(self) -> list:
-        from services.game_detector import MOCK_HISTORY
-        for key, t in THEMES.items():
-            if t is self._theme:
-                return MOCK_HISTORY.get(key, MOCK_HISTORY["default"])
-        return MOCK_HISTORY["default"]
-
     def _refresh_bar_text(self):
-        # État initial : on attend qu'un vrai jeu soit détecté
-        self._game_lbl.setText("En attente...")
-        self._game_lbl.setStyleSheet("color: rgba(255,255,255,120); background: transparent;")
+        self._game_lbl.setText("En attente…")
+        self._game_lbl.setStyleSheet("color: rgba(255,255,255,80); background: transparent;")
         self._kda_lbl.setText("")
-        self._viewers_lbl.setText("--")
-        # Masqué par défaut — visible seulement après connexion Twitch
-        self._sep1.setVisible(False)
-        self._viewers_lbl.setVisible(False)
 
     # ── Animations ────────────────────────────────────────────────────
 
@@ -292,11 +249,11 @@ class PillWidget(QWidget):
         self._fade_anim = QVariantAnimation(self)
         self._fade_anim.setStartValue(0.0)
         self._fade_anim.setEndValue(1.0)
-        self._fade_anim.setDuration(140)
+        self._fade_anim.setDuration(160)
         self._fade_anim.valueChanged.connect(lambda v: self._opacity_fx.setOpacity(v))
 
         self._entrance_anim = QVariantAnimation(self)
-        self._entrance_anim.setDuration(550)
+        self._entrance_anim.setDuration(600)
         self._entrance_anim.setEasingCurve(QEasingCurve.Type.OutBack)
         self._entrance_anim.valueChanged.connect(lambda y: self.move(self.x(), int(y)))
 
@@ -315,7 +272,7 @@ class PillWidget(QWidget):
         if not self._expanded:
             self._anim.setStartValue(0.0)
             self._anim.setEndValue(1.0)
-            self._reveal_timer.start(160)
+            self._reveal_timer.start(180)
             self._ac_timer.start(AUTO_COLLAPSE_MS)
         else:
             self._opacity_fx.setOpacity(0.0)
@@ -343,7 +300,7 @@ class PillWidget(QWidget):
             self.move(self.x(), -H_COL - 20)
             self._entrance_anim.setStartValue(float(-H_COL - 20))
             self._entrance_anim.setEndValue(float(ty))
-            QTimer.singleShot(100, self._entrance_anim.start)
+            QTimer.singleShot(80, self._entrance_anim.start)
 
     # ── Alert ─────────────────────────────────────────────────────────
 
@@ -363,7 +320,6 @@ class PillWidget(QWidget):
     # ── Alt key watcher ───────────────────────────────────────────────
 
     def _start_alt_watcher(self):
-        """Poll Alt key state at 60 Hz — highlights pill so user knows it's clickable."""
         t = QTimer(self)
         t.timeout.connect(self._check_alt)
         t.start(16)
@@ -386,7 +342,7 @@ class PillWidget(QWidget):
 
     def _tick_pulse(self):
         self._pulse_phase = (self._pulse_phase + 0.1257) % (2 * math.pi)
-        self._pulse_alpha = 0.35 + 0.65 * (math.sin(self._pulse_phase) * 0.5 + 0.5)
+        self._pulse_alpha = 0.3 + 0.7 * (math.sin(self._pulse_phase) * 0.5 + 0.5)
         self._dot.set_opacity(self._pulse_alpha)
 
     # ── Position ──────────────────────────────────────────────────────
@@ -400,7 +356,6 @@ class PillWidget(QWidget):
             self.move(sg.x() + saved.get("lx", (sg.width() - W_COL) // 2),
                       sg.y() + saved.get("ly", TOP_MARGIN))
         elif saved and "x" in saved:
-            # legacy format
             self.move(saved["x"], saved["y"])
         else:
             sg = QApplication.primaryScreen().geometry()
@@ -408,8 +363,7 @@ class PillWidget(QWidget):
 
     def _save_position(self):
         pos = self.pos()
-        screen = QApplication.screenAt(self.geometry().center()) \
-                 or QApplication.primaryScreen()
+        screen = QApplication.screenAt(self.geometry().center()) or QApplication.primaryScreen()
         screens = QApplication.screens()
         idx = screens.index(screen) if screen in screens else 0
         sg = screen.geometry()
@@ -427,10 +381,9 @@ class PillWidget(QWidget):
         self._sep1.setVisible(connected)
         self._viewers_lbl.setVisible(connected)
 
-    # ── Données live ──────────────────────────────────────────────────
+    # ── Live data ─────────────────────────────────────────────────────
 
     def update_live_data(self, data):
-        """Reçoit un TwitchData et met à jour la barre + le panel."""
         from services.twitch_service import TwitchData
         if not isinstance(data, TwitchData):
             return
@@ -443,7 +396,6 @@ class PillWidget(QWidget):
         )
 
     def reset_live_data(self):
-        """Remet à zéro après déconnexion Twitch."""
         self._viewers_lbl.setText("--")
         self._exp.update_stream_data("--", "--", "", False)
 
@@ -451,25 +403,22 @@ class PillWidget(QWidget):
 
     def apply_theme(self, theme: GameTheme, kda: dict, history: list):
         self._theme = theme
-
-        # LIVE stays red — never touched here
-        body = _body_text_color(theme.primary)
-        self._viewers_lbl.setStyleSheet(f"color: {body}; background: transparent;")
-        self._kda_lbl.setStyleSheet(f"color: {body}; background: transparent;")
-
-        game_color = _safe_game_color(theme.primary)
+        game_color = _safe_color(theme.primary)
 
         k, d, a = kda.get("k", "--"), kda.get("d", "--"), kda.get("a", "--")
-        has_game = theme.name != "Gaming" and str(k) != "--"
+        has_game = str(k) != "--"
 
         if has_game:
             self._game_lbl.setText(theme.name)
             self._game_lbl.setStyleSheet(f"color: {game_color}; background: transparent;")
             self._kda_lbl.setText(f"  {k} / {d} / {a}")
+            self._kda_lbl.setStyleSheet("color: rgba(255,255,255,160); background: transparent;")
+            self._sep2.setVisible(True)
         else:
-            self._game_lbl.setText("En attente...")
-            self._game_lbl.setStyleSheet("color: rgba(255,255,255,120); background: transparent;")
+            self._game_lbl.setText("En attente…")
+            self._game_lbl.setStyleSheet("color: rgba(255,255,255,80); background: transparent;")
             self._kda_lbl.setText("")
+            self._sep2.setVisible(False)
 
         self._exp.apply_theme(theme, kda, history)
         self.update()
@@ -480,39 +429,46 @@ class PillWidget(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        rect = QRectF(self.rect()).adjusted(1, 1, -1, -1)
+        w, h = self.width(), self.height()
+        rect = QRectF(0.5, 0.5, w - 1, h - 1)
+
         path = QPainterPath()
         path.addRoundedRect(rect, RADIUS, RADIUS)
 
-        painter.fillPath(path, QColor(8, 8, 10, 238))
+        # Fond noir profond
+        painter.fillPath(path, QColor(4, 4, 6, 252))
 
+        # Teinture jeu (très subtile)
         tr, tg, tb, ta = self._theme.bg_tint
-        painter.fillPath(path, QColor(tr, tg, tb, ta))
+        painter.fillPath(path, QColor(tr, tg, tb, min(ta, 30)))
 
-        grad = QLinearGradient(0, 0, 0, H_COL)
-        grad.setColorAt(0.0, QColor(255, 255, 255, 14))
-        grad.setColorAt(0.6, QColor(255, 255, 255, 0))
+        # Reflet de verre en haut
+        grad = QLinearGradient(0, 0, 0, H_COL * 0.7)
+        grad.setColorAt(0.0, QColor(255, 255, 255, 18))
+        grad.setColorAt(1.0, QColor(255, 255, 255, 0))
         painter.fillPath(path, QBrush(grad))
 
+        # Bordure très fine
         rr, gg, bb = _hex_rgb(self._theme.primary)
-        pen = QPen(QColor(rr, gg, bb, 50))
-        pen.setWidthF(1.0)
+        pen = QPen(QColor(rr, gg, bb, 35))
+        pen.setWidthF(0.8)
         painter.setPen(pen)
         painter.drawPath(path)
 
-        # Alt held → bright white border so user knows pill is clickable
+        # Alt → bordure blanche pour signaler le drag
         if self._alt_held:
-            alt_pen = QPen(QColor(255, 255, 255, 160))
-            alt_pen.setWidthF(1.5)
-            painter.setPen(alt_pen)
+            p2 = QPen(QColor(255, 255, 255, 140))
+            p2.setWidthF(1.2)
+            painter.setPen(p2)
             painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.drawPath(path)
 
+        # Alert → halo vert
         if self._alert_active:
-            a = int(max(0.0, math.sin(self._alert_phase)) * 230)
-            alert_pen = QPen(QColor(48, 209, 88, a))
-            alert_pen.setWidthF(2.0)
-            painter.setPen(alert_pen)
+            a = int(max(0.0, math.sin(self._alert_phase)) * 210)
+            p3 = QPen(QColor(48, 209, 88, a))
+            p3.setWidthF(2.0)
+            painter.setPen(p3)
             painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.drawPath(path)
 
