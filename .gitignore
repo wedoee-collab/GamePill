@@ -13,6 +13,7 @@ build/
 .env
 secrets.json
 config_local.json
+core/constants.py
 
 # Config locale utilisateur (tokens, position écran)
 # Le dossier AppData est hors du projet, donc pas de risque
