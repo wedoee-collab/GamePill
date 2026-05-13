@@ -14,10 +14,10 @@ from PyQt6.QtGui import (
 
 
 PURPLE      = "#9146FF"
-PURPLE_DARK = "#6A0DAD"
+PURPLE_DARK = "#7B2FBE"
 GOLD        = "#D4AF37"
-BLACK       = "#08080a"
-CARD        = "#0e0e12"
+BLACK       = "#16162a"
+CARD        = "#1e1e32"
 RED_LIVE    = "#ff3b30"
 
 
@@ -94,7 +94,7 @@ class TwitchConnectDialog(QDialog):
         header.setFixedHeight(130)
         header.setStyleSheet(f"""
             background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                stop:0 #1a0630, stop:0.6 #110422, stop:1 {BLACK});
+                stop:0 #2d1060, stop:0.6 #1e0a40, stop:1 {BLACK});
         """)
 
         hl = QVBoxLayout(header)
@@ -136,7 +136,7 @@ class TwitchConnectDialog(QDialog):
 
         sub = QLabel("GamePill accède à tes stats en lecture seule.")
         sub.setFont(_sf(10))
-        sub.setStyleSheet("color: rgba(255,255,255,0.45);")
+        sub.setStyleSheet("color: rgba(255,255,255,0.7);")
         hl.addWidget(sub)
 
         layout.addWidget(header)
@@ -176,7 +176,7 @@ class TwitchConnectDialog(QDialog):
 
             tx = QLabel(text)
             tx.setFont(_sf(10))
-            tx.setStyleSheet("color: rgba(255,255,255,0.65);")
+            tx.setStyleSheet("color: rgba(255,255,255,0.88);")
 
             row.addWidget(ic)
             row.addWidget(tx)
@@ -197,7 +197,7 @@ class TwitchConnectDialog(QDialog):
         # Vie privée
         priv = QLabel("🔒  Données 100% locales · Aucun serveur externe")
         priv.setFont(_sf(9))
-        priv.setStyleSheet("color: rgba(255,255,255,0.3);")
+        priv.setStyleSheet("color: rgba(255,255,255,0.5);")
         bl.addWidget(priv)
 
         bl.addStretch()

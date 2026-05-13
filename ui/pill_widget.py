@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QTimer, QVariantAnimation, QEasingCurve, QPoint, QRectF
 from PyQt6.QtGui import (
-    QPainter, QColor, QPainterPath, QPen, QFont, QLinearGradient, QBrush, QRegion,
+    QPainter, QColor, QPainterPath, QPen, QFont, QLinearGradient, QBrush, QRegion, QBitmap,
 )
 
 from ui.expanded_widget import ExpandedContent
@@ -158,6 +158,7 @@ class PillWidget(QWidget):
         # ── Barre compacte ────────────────────────────────────────────
         bar = QWidget()
         bar.setFixedHeight(H_COL)
+        bar.setAutoFillBackground(False)
         bar.setStyleSheet("background: transparent;")
         bl = QHBoxLayout(bar)
         bl.setContentsMargins(16, 0, 16, 0)
@@ -213,6 +214,7 @@ class PillWidget(QWidget):
         # ── Panneau étendu ────────────────────────────────────────────
         self._exp = ExpandedContent(self._theme, {}, [])
         self._exp.setVisible(False)
+        self._exp.setAutoFillBackground(False)
         self._exp.setStyleSheet("background: transparent;")
         self._opacity_fx = QGraphicsOpacityEffect()
         self._opacity_fx.setOpacity(0.0)
@@ -293,8 +295,25 @@ class PillWidget(QWidget):
         self._fade_anim.setEndValue(1.0)
         self._fade_anim.start()
 
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._apply_mask()
+
+    def _apply_mask(self):
+        """Bitmap mask = seule méthode fiable sur Windows pour les coins ronds."""
+        bmp = QBitmap(self.size())
+        bmp.fill(Qt.GlobalColor.color0)          # tout noir (transparent)
+        p = QPainter(bmp)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        path = QPainterPath()
+        path.addRoundedRect(QRectF(bmp.rect()), RADIUS, RADIUS)
+        p.fillPath(path, QBrush(Qt.GlobalColor.color1))  # pill en blanc (opaque)
+        p.end()
+        self.setMask(bmp)
+
     def showEvent(self, event):
         super().showEvent(event)
+        self._apply_mask()
         if self._first_show:
             self._first_show = False
             ty = self.y()
@@ -429,11 +448,6 @@ class PillWidget(QWidget):
     def paintEvent(self, _):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-        # Efface tout en transparent — élimine les artefacts de coins
-        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
-        painter.fillRect(self.rect(), Qt.GlobalColor.transparent)
-        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
 
         w, h = self.width(), self.height()
         rect = QRectF(0.5, 0.5, w - 1, h - 1)
