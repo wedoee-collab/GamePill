@@ -5,9 +5,9 @@ from PyQt6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QLabel, QFrame,
     QApplication, QGraphicsOpacityEffect,
 )
-from PyQt6.QtCore import Qt, QTimer, QVariantAnimation, QEasingCurve, QPoint, QRectF, QRegion
+from PyQt6.QtCore import Qt, QTimer, QVariantAnimation, QEasingCurve, QPoint, QRectF
 from PyQt6.QtGui import (
-    QPainter, QColor, QPainterPath, QPen, QFont, QLinearGradient, QBrush, QPolygon,
+    QPainter, QColor, QPainterPath, QPen, QFont, QLinearGradient, QBrush, QRegion,
 )
 
 from ui.expanded_widget import ExpandedContent
