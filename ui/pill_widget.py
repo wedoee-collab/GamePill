@@ -197,11 +197,11 @@ class PillWidget(QWidget):
             f"color: {RED_LIVE}; background: transparent; letter-spacing: 2px;"
         )
 
-        sep1 = self._vsep()
+        self._sep1 = self._vsep()
 
-        self._platform_icon = PlatformIcon(PLATFORM_TWITCH)
+        self._platform_icon = PlatformIcon(PLATFORM_NONE)
 
-        self._viewers_lbl = QLabel("1 247")
+        self._viewers_lbl = QLabel("--")
         self._viewers_lbl.setFont(_sf(11, QFont.Weight.DemiBold))
         self._viewers_lbl.setStyleSheet(
             f"color: {_body_text_color(self._theme.primary)}; background: transparent;"
@@ -225,7 +225,7 @@ class PillWidget(QWidget):
         bl.addStretch()
         bl.addWidget(self._dot)
         bl.addWidget(self._live_lbl)
-        bl.addWidget(sep1)
+        bl.addWidget(self._sep1)
         bl.addWidget(self._platform_icon)
         bl.addWidget(self._viewers_lbl)
         bl.addWidget(sep2)
@@ -268,10 +268,14 @@ class PillWidget(QWidget):
         return MOCK_HISTORY["default"]
 
     def _refresh_bar_text(self):
-        kda = self._mock_kda()
-        self._game_lbl.setText(self._theme.name)
-        k, d, a = kda.get("k", 0), kda.get("d", 0), kda.get("a", 0)
-        self._kda_lbl.setText(f"  {k} / {d} / {a}")
+        # État initial : on attend qu'un vrai jeu soit détecté
+        self._game_lbl.setText("En attente...")
+        self._game_lbl.setStyleSheet("color: rgba(255,255,255,120); background: transparent;")
+        self._kda_lbl.setText("")
+        self._viewers_lbl.setText("--")
+        # Masqué par défaut — visible seulement après connexion Twitch
+        self._sep1.setVisible(False)
+        self._viewers_lbl.setVisible(False)
 
     # ── Animations ────────────────────────────────────────────────────
 
@@ -418,7 +422,30 @@ class PillWidget(QWidget):
     # ── Platform ──────────────────────────────────────────────────────
 
     def set_platform(self, platform: str):
+        connected = platform != PLATFORM_NONE
         self._platform_icon.set_platform(platform)
+        self._sep1.setVisible(connected)
+        self._viewers_lbl.setVisible(connected)
+
+    # ── Données live ──────────────────────────────────────────────────
+
+    def update_live_data(self, data):
+        """Reçoit un TwitchData et met à jour la barre + le panel."""
+        from services.twitch_service import TwitchData
+        if not isinstance(data, TwitchData):
+            return
+        self._viewers_lbl.setText(data.viewers_fmt() if data.is_live else "Offline")
+        self._exp.update_stream_data(
+            viewers    = data.viewers_fmt(),
+            duration   = data.uptime_fmt(),
+            last_event = data.last_follower,
+            is_live    = data.is_live,
+        )
+
+    def reset_live_data(self):
+        """Remet à zéro après déconnexion Twitch."""
+        self._viewers_lbl.setText("--")
+        self._exp.update_stream_data("--", "--", "", False)
 
     # ── Theme ─────────────────────────────────────────────────────────
 
@@ -431,11 +458,18 @@ class PillWidget(QWidget):
         self._kda_lbl.setStyleSheet(f"color: {body}; background: transparent;")
 
         game_color = _safe_game_color(theme.primary)
-        self._game_lbl.setText(theme.name)
-        self._game_lbl.setStyleSheet(f"color: {game_color}; background: transparent;")
 
-        k, d, a = kda.get("k", 0), kda.get("d", 0), kda.get("a", 0)
-        self._kda_lbl.setText(f"  {k} / {d} / {a}")
+        k, d, a = kda.get("k", "--"), kda.get("d", "--"), kda.get("a", "--")
+        has_game = theme.name != "Gaming" and str(k) != "--"
+
+        if has_game:
+            self._game_lbl.setText(theme.name)
+            self._game_lbl.setStyleSheet(f"color: {game_color}; background: transparent;")
+            self._kda_lbl.setText(f"  {k} / {d} / {a}")
+        else:
+            self._game_lbl.setText("En attente...")
+            self._game_lbl.setStyleSheet("color: rgba(255,255,255,120); background: transparent;")
+            self._kda_lbl.setText("")
 
         self._exp.apply_theme(theme, kda, history)
         self.update()
