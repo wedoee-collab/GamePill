@@ -9,11 +9,16 @@ import hashlib
 import secrets
 import threading
 import uuid
+import warnings
 import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import parse_qs, urlparse
 
 import httpx
+
+# Réseau d'entreprise avec inspection SSL — on désactive les warnings
+warnings.filterwarnings("ignore", message=".*Unverified HTTPS.*")
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="httpx")
 from cryptography.fernet import Fernet
 
 from core.config import Config
@@ -146,7 +151,7 @@ class TwitchAuth:
                 "code_verifier": verifier,
                 "grant_type":    "authorization_code",
                 "redirect_uri":  REDIRECT_URI,
-            }, timeout=10)
+            }, timeout=10, verify=False)
             print(f"[Auth] Réponse Twitch : HTTP {r.status_code}")
             r.raise_for_status()
             d = r.json()
@@ -166,7 +171,7 @@ class TwitchAuth:
             r = httpx.get(f"{API_URL}/users", headers={
                 "Authorization": f"Bearer {access_token}",
                 "Client-Id":     self.client_id,
-            }, timeout=5)
+            }, timeout=5, verify=False)
             if r.status_code == 200:
                 data = r.json().get("data", [])
                 if data:
@@ -186,7 +191,7 @@ class TwitchAuth:
                 "client_id":     self.client_id,
                 "refresh_token": rt,
                 "grant_type":    "refresh_token",
-            }, timeout=10)
+            }, timeout=10, verify=False)
             r.raise_for_status()
             d = r.json()
             self._save(d["access_token"], d.get("refresh_token", rt))
@@ -213,7 +218,7 @@ class TwitchAuth:
             r = httpx.get(f"{API_URL}/users", headers={
                 "Authorization": f"Bearer {token}",
                 "Client-Id":     self.client_id,
-            }, timeout=5)
+            }, timeout=5, verify=False)
             if r.status_code == 200:
                 print("[Auth] Token valide, session restaurée")
                 return True
