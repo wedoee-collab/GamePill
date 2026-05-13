@@ -22,7 +22,7 @@ warnings.filterwarnings("ignore", category=DeprecationWarning, module="httpx")
 from cryptography.fernet import Fernet
 
 from core.config import Config
-from core.constants import TWITCH_CLIENT_ID
+from core.constants import TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET
 
 REDIRECT_URI = "http://localhost:3000/callback"
 SCOPES       = "channel:read:subscriptions moderator:read:followers user:read:email"
@@ -159,13 +159,17 @@ class TwitchAuth:
     def _exchange(self, code: str, verifier: str) -> bool:
         try:
             print(f"[Auth] Échange du code contre un token…")
-            r = httpx.post(TOKEN_URL, data={
-                "client_id":     self.client_id,
-                "code":          code,
-                "code_verifier": verifier,
-                "grant_type":    "authorization_code",
-                "redirect_uri":  REDIRECT_URI,
-            }, timeout=10, verify=False)
+            payload: dict = {
+                "client_id":    self.client_id,
+                "code":         code,
+                "grant_type":   "authorization_code",
+                "redirect_uri": REDIRECT_URI,
+            }
+            if TWITCH_CLIENT_SECRET:
+                payload["client_secret"] = TWITCH_CLIENT_SECRET
+            else:
+                payload["code_verifier"] = verifier   # PKCE only (public app)
+            r = httpx.post(TOKEN_URL, data=payload, timeout=10, verify=False)
             print(f"[Auth] Réponse Twitch : HTTP {r.status_code}")
             if r.status_code != 200:
                 print(f"[Auth] Body erreur Twitch : {r.text}")
@@ -203,11 +207,14 @@ class TwitchAuth:
         if not rt:
             return False
         try:
-            r = httpx.post(TOKEN_URL, data={
+            refresh_payload: dict = {
                 "client_id":     self.client_id,
                 "refresh_token": rt,
                 "grant_type":    "refresh_token",
-            }, timeout=10, verify=False)
+            }
+            if TWITCH_CLIENT_SECRET:
+                refresh_payload["client_secret"] = TWITCH_CLIENT_SECRET
+            r = httpx.post(TOKEN_URL, data=refresh_payload, timeout=10, verify=False)
             r.raise_for_status()
             d = r.json()
             self._save(d["access_token"], d.get("refresh_token", rt))
