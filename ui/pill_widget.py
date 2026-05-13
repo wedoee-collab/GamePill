@@ -3,11 +3,11 @@ import ctypes
 
 from PyQt6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QLabel, QFrame,
-    QApplication, QGraphicsOpacityEffect,
+    QApplication,
 )
 from PyQt6.QtCore import Qt, QTimer, QVariantAnimation, QEasingCurve, QPoint, QRectF
 from PyQt6.QtGui import (
-    QPainter, QColor, QPainterPath, QPen, QFont, QLinearGradient, QBrush, QRegion, QBitmap,
+    QPainter, QColor, QPainterPath, QPen, QFont, QLinearGradient, QBrush,
 )
 
 from ui.expanded_widget import ExpandedContent
@@ -16,6 +16,7 @@ from core.themes import GameTheme, THEMES
 
 PLATFORM_TWITCH  = "twitch"
 PLATFORM_YOUTUBE = "youtube"
+PLATFORM_KICK    = "kick"
 PLATFORM_NONE    = "none"
 
 
@@ -32,6 +33,7 @@ class PlatformIcon(QWidget):
     def set_platform(self, platform: str):
         self._platform = platform
         self.setVisible(platform != PLATFORM_NONE)
+        self.setFixedSize(20 if platform == PLATFORM_KICK else 18, 14)
         self.update()
 
     @staticmethod
@@ -66,6 +68,29 @@ class PlatformIcon(QWidget):
             tri.moveTo(W*0.34, H*0.22); tri.lineTo(W*0.34, H*0.78)
             tri.lineTo(W*0.76, H*0.50); tri.closeSubpath()
             painter.fillPath(tri, QColor("white"))
+
+        elif self._platform == PLATFORM_KICK:
+            # Fond vert Kick
+            painter.fillPath(self._rr(0, 0, W, H, 2.5), QColor("#53FC18"))
+            # Logo K angulaire en noir
+            k = QPainterPath()
+            x0, x1, xm = W*0.18, W*0.82, W*0.52
+            y0, yh, y1 = H*0.12, H*0.50, H*0.88
+            # Barre verticale gauche du K
+            k.addRect(QRectF(x0, y0, W*0.18, y1 - y0))
+            # Branche haute : xm,yh → x1,y0
+            top = QPainterPath()
+            top.moveTo(xm, yh); top.lineTo(x1, y0)
+            top.lineTo(x1 - W*0.16, y0); top.lineTo(xm - W*0.01, yh)
+            top.closeSubpath()
+            # Branche basse : xm,yh → x1,y1
+            bot = QPainterPath()
+            bot.moveTo(xm, yh); bot.lineTo(x1, y1)
+            bot.lineTo(x1 - W*0.16, y1); bot.lineTo(xm - W*0.01, yh)
+            bot.closeSubpath()
+            painter.fillPath(k,   QColor("#000000"))
+            painter.fillPath(top, QColor("#000000"))
+            painter.fillPath(bot, QColor("#000000"))
 
 
 # ── Dimensions ────────────────────────────────────────────────────────────────
@@ -103,18 +128,21 @@ class _DotWidget(QWidget):
     def __init__(self):
         super().__init__()
         self.setFixedSize(7, 7)
-        self._effect = QGraphicsOpacityEffect(self)
-        self._effect.setOpacity(1.0)
-        self.setGraphicsEffect(self._effect)
+        self._alpha = 255
+        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
+        self.setAutoFillBackground(False)
 
     def set_opacity(self, v: float):
-        self._effect.setOpacity(v)
+        self._alpha = int(v * 255)
+        self.update()
 
     def paintEvent(self, _):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(QColor(RED_LIVE))
+        c = QColor(RED_LIVE)
+        c.setAlpha(self._alpha)
+        p.setBrush(c)
         p.drawEllipse(0, 0, 7, 7)
 
 
@@ -131,6 +159,7 @@ class PillWidget(QWidget):
         self._alert_active = False
         self._alt_held = False
         self._first_show = True
+        self._current_platform = PLATFORM_NONE   # pour la couleur de bordure
 
         self._init_window()
         self._build_ui()
@@ -148,6 +177,8 @@ class PillWidget(QWidget):
             | Qt.WindowType.NoDropShadowWindowHint
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent, False)
         self.resize(W_COL, H_COL)
 
     def _build_ui(self):
@@ -158,6 +189,8 @@ class PillWidget(QWidget):
         # ── Barre compacte ────────────────────────────────────────────
         bar = QWidget()
         bar.setFixedHeight(H_COL)
+        bar.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
+        bar.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent, False)
         bar.setAutoFillBackground(False)
         bar.setStyleSheet("background: transparent;")
         bl = QHBoxLayout(bar)
@@ -186,6 +219,11 @@ class PillWidget(QWidget):
         self._viewers_lbl.setStyleSheet("color: rgba(255,255,255,210); background: transparent;")
         self._viewers_lbl.setVisible(False)
 
+        self._peak_lbl = QLabel("")
+        self._peak_lbl.setFont(_sf(8))
+        self._peak_lbl.setStyleSheet("color: rgba(255,255,255,80); background: transparent;")
+        self._peak_lbl.setVisible(False)
+
         # Séparateur 2 (avant jeu)
         self._sep2 = self._vsep()
 
@@ -206,6 +244,7 @@ class PillWidget(QWidget):
         bl.addWidget(self._platform_icon)
         bl.addSpacing(2)
         bl.addWidget(self._viewers_lbl)
+        bl.addWidget(self._peak_lbl)
         bl.addWidget(self._sep2)
         bl.addWidget(self._game_lbl)
         bl.addWidget(self._kda_lbl)
@@ -215,10 +254,8 @@ class PillWidget(QWidget):
         self._exp = ExpandedContent(self._theme, {}, [])
         self._exp.setVisible(False)
         self._exp.setAutoFillBackground(False)
+        self._exp.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
         self._exp.setStyleSheet("background: transparent;")
-        self._opacity_fx = QGraphicsOpacityEffect()
-        self._opacity_fx.setOpacity(0.0)
-        self._exp.setGraphicsEffect(self._opacity_fx)
 
         root.addWidget(bar)
         root.addWidget(self._exp)
@@ -249,12 +286,6 @@ class PillWidget(QWidget):
         self._reveal_timer.setSingleShot(True)
         self._reveal_timer.timeout.connect(self._reveal_expanded)
 
-        self._fade_anim = QVariantAnimation(self)
-        self._fade_anim.setStartValue(0.0)
-        self._fade_anim.setEndValue(1.0)
-        self._fade_anim.setDuration(160)
-        self._fade_anim.valueChanged.connect(lambda v: self._opacity_fx.setOpacity(v))
-
         self._entrance_anim = QVariantAnimation(self)
         self._entrance_anim.setDuration(600)
         self._entrance_anim.setEasingCurve(QEasingCurve.Type.OutBack)
@@ -278,7 +309,6 @@ class PillWidget(QWidget):
             self._reveal_timer.start(180)
             self._ac_timer.start(AUTO_COLLAPSE_MS)
         else:
-            self._opacity_fx.setOpacity(0.0)
             self._exp.setVisible(False)
             self._anim.setStartValue(1.0)
             self._anim.setEndValue(0.0)
@@ -290,30 +320,9 @@ class PillWidget(QWidget):
 
     def _reveal_expanded(self):
         self._exp.setVisible(True)
-        self._fade_anim.stop()
-        self._fade_anim.setStartValue(0.0)
-        self._fade_anim.setEndValue(1.0)
-        self._fade_anim.start()
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        self._apply_mask()
-
-    def _apply_mask(self):
-        """Bitmap mask = seule méthode fiable sur Windows pour les coins ronds."""
-        bmp = QBitmap(self.size())
-        bmp.fill(Qt.GlobalColor.color0)          # tout noir (transparent)
-        p = QPainter(bmp)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        path = QPainterPath()
-        path.addRoundedRect(QRectF(bmp.rect()), RADIUS, RADIUS)
-        p.fillPath(path, QBrush(Qt.GlobalColor.color1))  # pill en blanc (opaque)
-        p.end()
-        self.setMask(bmp)
 
     def showEvent(self, event):
         super().showEvent(event)
-        self._apply_mask()
         if self._first_show:
             self._first_show = False
             ty = self.y()
@@ -396,26 +405,36 @@ class PillWidget(QWidget):
     # ── Platform ──────────────────────────────────────────────────────
 
     def set_platform(self, platform: str):
+        self._current_platform = platform
         connected = platform != PLATFORM_NONE
         self._platform_icon.set_platform(platform)
         self._sep1.setVisible(connected)
         self._viewers_lbl.setVisible(connected)
+        if not connected:
+            self._peak_lbl.setVisible(False)
+        self.update()   # redessine la bordure avec la bonne couleur
 
     # ── Live data ─────────────────────────────────────────────────────
 
-    def update_live_data(self, data):
-        from services.twitch_service import TwitchData
-        if not isinstance(data, TwitchData):
-            return
-        self._viewers_lbl.setText(data.viewers_fmt() if data.is_live else "Offline")
+    def update_live_data(self, platform: str, viewers: str, duration: str,
+                         last_event: str, is_live: bool,
+                         peak: str = "", session: dict | None = None):
+        self._viewers_lbl.setText(viewers if is_live else "Offline")
+        # Peak — affiché uniquement si > viewers actuel et stream live
+        if is_live and peak and peak != viewers:
+            self._peak_lbl.setText(f" ↑{peak}")
+            self._peak_lbl.setVisible(True)
+        else:
+            self._peak_lbl.setVisible(False)
         self._exp.update_stream_data(
-            viewers    = data.viewers_fmt(),
-            duration   = data.uptime_fmt(),
-            last_event = data.last_follower,
-            is_live    = data.is_live,
+            viewers    = viewers,
+            duration   = duration,
+            last_event = last_event,
+            is_live    = is_live,
+            session    = session or {},
         )
 
-    def reset_live_data(self):
+    def reset_live_data(self, platform: str = PLATFORM_NONE):
         self._viewers_lbl.setText("--")
         self._exp.update_stream_data("--", "--", "", False)
 
@@ -450,6 +469,12 @@ class PillWidget(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         w, h = self.width(), self.height()
+
+        # Efface toute la fenêtre → coins vraiment transparents
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
+        painter.fillRect(0, 0, w, h, QColor(0, 0, 0, 0))
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
+
         rect = QRectF(0.5, 0.5, w - 1, h - 1)
 
         path = QPainterPath()
@@ -468,9 +493,17 @@ class PillWidget(QWidget):
         grad.setColorAt(1.0, QColor(255, 255, 255, 0))
         painter.fillPath(path, QBrush(grad))
 
-        # Bordure très fine
-        rr, gg, bb = _hex_rgb(self._theme.primary)
-        pen = QPen(QColor(rr, gg, bb, 35))
+        # Bordure — couleur selon plateforme active
+        if self._current_platform == PLATFORM_TWITCH:
+            border = QColor(145, 70, 255, 55)   # violet Twitch
+        elif self._current_platform == PLATFORM_YOUTUBE:
+            border = QColor(255, 40, 40, 55)    # rouge YouTube
+        elif self._current_platform == PLATFORM_KICK:
+            border = QColor(83, 252, 24, 55)    # vert Kick
+        else:
+            rr, gg, bb = _hex_rgb(self._theme.primary)
+            border = QColor(rr, gg, bb, 35)     # couleur du jeu
+        pen = QPen(border)
         pen.setWidthF(0.8)
         painter.setPen(pen)
         painter.drawPath(path)

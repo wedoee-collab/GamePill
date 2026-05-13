@@ -70,12 +70,15 @@ class GameDetector(QObject):
         self._scan()
 
     def current_kda(self) -> dict:
-        key = self._current_key or "default"
-        return MOCK_KDA.get(key, MOCK_KDA["default"])
+        if not self._current_key:
+            # Aucun jeu détecté — on affiche rien
+            return {"k": "--", "d": "--", "a": "--", "agent": "", "rank": ""}
+        return MOCK_KDA.get(self._current_key, MOCK_KDA["default"])
 
     def current_history(self) -> list:
-        key = self._current_key or "default"
-        return MOCK_HISTORY.get(key, MOCK_HISTORY["default"])
+        if not self._current_key:
+            return []
+        return MOCK_HISTORY.get(self._current_key, MOCK_HISTORY["default"])
 
     def current_theme(self) -> GameTheme:
         return THEMES.get(self._current_key or "default", THEMES["default"])

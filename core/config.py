@@ -1,13 +1,15 @@
 import json
 import os
+import threading
 from pathlib import Path
 
 
 class Config:
     def __init__(self):
-        self.config_dir = Path(os.environ.get("APPDATA", Path.home())) / "GamePill"
+        self.config_dir  = Path(os.environ.get("APPDATA", Path.home())) / "GamePill"
         self.config_file = self.config_dir / "config.json"
-        self._data = {}
+        self._data: dict = {}
+        self._lock = threading.Lock()
         self._load()
 
     def _load(self):
@@ -24,11 +26,13 @@ class Config:
             json.dump(self._data, f, indent=2, ensure_ascii=False)
 
     def get(self, key, default=None):
-        return self._data.get(key, default)
+        with self._lock:
+            return self._data.get(key, default)
 
     def set(self, key, value):
-        self._data[key] = value
-        self._save()
+        with self._lock:
+            self._data[key] = value
+            self._save()
 
     @property
     def is_first_launch(self):

@@ -148,6 +148,16 @@ class ExpandedContent(QWidget):
         stream_row.addWidget(self._dur_lbl)
         layout.addLayout(stream_row)
 
+        # ── Compteurs session ─────────────────────────────────────────
+        self._session_lbl = QLabel("")
+        self._session_lbl.setFont(_sf(9))
+        self._session_lbl.setStyleSheet(
+            "color: rgba(255,255,255,110); background: transparent; "
+            "padding-left: 16px;"
+        )
+        self._session_lbl.setVisible(False)
+        layout.addWidget(self._session_lbl)
+
         # ── Banner follow/sub — caché par défaut ──────────────────────
         self._banner = QWidget()
         self._banner.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
@@ -231,9 +241,26 @@ class ExpandedContent(QWidget):
         self._cards["Agent"].set_color(theme.primary)
 
     def update_stream_data(self, viewers: str, duration: str,
-                           last_event: str, is_live: bool):
+                           last_event: str, is_live: bool,
+                           session: dict | None = None):
         self._viewers_lbl.setText(f"{viewers} viewers" if is_live else "Offline")
         self._dur_lbl.setText(duration if is_live else "")
+
+        # Compteurs de session
+        s = session or {}
+        follows = s.get("follows", 0)
+        subs    = s.get("subs", 0)
+        raids   = s.get("raids", 0)
+        if is_live and (follows or subs or raids):
+            parts = []
+            if follows: parts.append(f"+{follows} follows")
+            if subs:    parts.append(f"+{subs} subs")
+            if raids:   parts.append(f"+{raids} raids")
+            self._session_lbl.setText("  ·  ".join(parts))
+            self._session_lbl.setVisible(True)
+        else:
+            self._session_lbl.setVisible(False)
+
         if last_event:
             self._banner_text.setText(f"Nouveau follow — {last_event}")
             self._banner.setVisible(True)

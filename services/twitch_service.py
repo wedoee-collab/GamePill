@@ -1,38 +1,54 @@
 """
-Twitch Helix API — polling toutes les 5s en background thread.
-Données : viewers, uptime, dernier follower.
+Twitch Helix API — polling toutes les 5s.
+Données : viewers, peak, uptime, session counters (follows/subs/raids).
 """
 
 import threading
-import warnings
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 import httpx
-
-warnings.filterwarnings("ignore", message=".*Unverified HTTPS.*")
 from PyQt6.QtCore import QObject, QTimer, pyqtSignal
 
 from core.auth import TwitchAuth
 from core.config import Config
-from core.constants import TWITCH_CLIENT_ID
+import core.logger as _log_mod
+
+log = _log_mod.get("twitch")
 
 API = "https://api.twitch.tv/helix"
 
 
 @dataclass
 class TwitchData:
-    is_live:       bool = False
-    viewers:       int  = 0
-    game_name:     str  = ""
-    uptime_sec:    int  = 0
-    last_follower: str  = ""
-    broadcaster_id: str = ""
-    username:      str  = ""
+    is_live:         bool = False
+    viewers:         int  = 0
+    peak_viewers:    int  = 0
+    game_name:       str  = ""
+    uptime_sec:      int  = 0
+    last_follower:   str  = ""
+    broadcaster_id:  str  = ""
+    username:        str  = ""
+    session_follows: int  = 0
+    session_subs:    int  = 0
+    session_raids:   int  = 0
+    session_start:   str  = ""   # ISO — détecte les redémarrages de stream
 
     def viewers_fmt(self) -> str:
-        """1247 → '1 247'"""
-        return f"{self.viewers:,}".replace(",", " ")
+        v = self.viewers
+        if v >= 1_000_000:
+            return f"{v/1_000_000:.1f}M"
+        if v >= 1_000:
+            return f"{v/1_000:.1f}k"
+        return str(v)
+
+    def peak_fmt(self) -> str:
+        v = self.peak_viewers
+        if v >= 1_000_000:
+            return f"{v/1_000_000:.1f}M"
+        if v >= 1_000:
+            return f"{v/1_000:.1f}k"
+        return str(v)
 
     def uptime_fmt(self) -> str:
         if not self.uptime_sec:
@@ -43,7 +59,7 @@ class TwitchData:
 
 
 class TwitchService(QObject):
-    data_updated    = pyqtSignal(object)   # émet un TwitchData
+    data_updated    = pyqtSignal(object)
     connection_lost = pyqtSignal()
 
     POLL_MS = 5_000
@@ -74,6 +90,27 @@ class TwitchService(QObject):
         with self._lock:
             return TwitchData(**vars(self._data))
 
+    # ── EventSub callbacks (appelés depuis TwitchEventSub) ───────────
+
+    def add_follow(self, username: str):
+        with self._lock:
+            self._data.session_follows += 1
+            self._data.last_follower    = username
+        snapshot = self.data
+        QTimer.singleShot(0, lambda: self.data_updated.emit(snapshot))
+
+    def add_sub(self, username: str, is_gift: bool = False):
+        with self._lock:
+            self._data.session_subs += 1
+        snapshot = self.data
+        QTimer.singleShot(0, lambda: self.data_updated.emit(snapshot))
+
+    def add_raid(self, from_name: str, viewers: int):
+        with self._lock:
+            self._data.session_raids += 1
+        snapshot = self.data
+        QTimer.singleShot(0, lambda: self.data_updated.emit(snapshot))
+
     # ── Polling ───────────────────────────────────────────────────────
 
     def _poll(self):
@@ -82,11 +119,10 @@ class TwitchService(QObject):
     def _worker(self):
         try:
             self._fetch()
-            self.data_updated.emit(self.data)
         except Exception as e:
-            print(f"[Twitch] Erreur poll : {e}")
-            # On émet quand même pour garder l'UI cohérente
-            self.data_updated.emit(self.data)
+            log.error("Erreur poll : %s", e)
+        snapshot = self.data
+        QTimer.singleShot(0, lambda: self.data_updated.emit(snapshot))
 
     # ── Requêtes HTTP ─────────────────────────────────────────────────
 
@@ -101,24 +137,25 @@ class TwitchService(QObject):
 
     def _get(self, path: str, params: dict, headers: dict) -> dict | None:
         try:
-            r = httpx.get(f"{API}{path}", params=params, headers=headers, timeout=5, verify=False)
+            r = httpx.get(f"{API}{path}", params=params, headers=headers,
+                          timeout=5, verify=False)
             if r.status_code == 401:
                 if self._auth.refresh():
                     h2 = self._headers()
                     if h2:
-                        r = httpx.get(f"{API}{path}", params=params, headers=h2, timeout=5, verify=False)
+                        r = httpx.get(f"{API}{path}", params=params, headers=h2,
+                                      timeout=5, verify=False)
                     else:
-                        self.connection_lost.emit()
+                        QTimer.singleShot(0, self.connection_lost.emit)
                         return None
                 else:
-                    self.connection_lost.emit()
+                    QTimer.singleShot(0, self.connection_lost.emit)
                     return None
             return r.json() if r.status_code == 200 else None
         except httpx.TimeoutException:
-            print(f"[Twitch] Timeout sur {path}")
             return None
         except Exception as e:
-            print(f"[Twitch] Erreur HTTP {path} : {e}")
+            log.error("HTTP %s : %s", path, e)
             return None
 
     def _fetch(self):
@@ -126,7 +163,6 @@ class TwitchService(QObject):
         if not headers or not self.username:
             return
 
-        # ── Stream ────────────────────────────────────────────────────
         resp = self._get("/streams", {"user_login": self.username}, headers)
         if resp is None:
             return
@@ -134,19 +170,38 @@ class TwitchService(QObject):
         streams = resp.get("data", [])
         with self._lock:
             if not streams:
-                self._data.is_live   = False
-                self._data.viewers   = 0
+                self._data.is_live    = False
+                self._data.viewers    = 0
                 self._data.uptime_sec = 0
                 return
 
             s = streams[0]
+            viewers       = s.get("viewer_count", 0)
+            started       = s.get("started_at", "")
+            broadcaster   = s.get("user_id", "")
+
+            # Reset session counters si nouveau stream
+            if started and started != self._data.session_start:
+                self._data.session_start   = started
+                self._data.session_follows = 0
+                self._data.session_subs    = 0
+                self._data.session_raids   = 0
+                self._data.peak_viewers    = 0
+
+            # Peak viewers
+            if viewers > self._data.peak_viewers:
+                self._data.peak_viewers = viewers
+
             self._data.is_live        = True
-            self._data.viewers        = s.get("viewer_count", 0)
+            self._data.viewers        = viewers
             self._data.game_name      = s.get("game_name", "")
-            self._data.broadcaster_id = s.get("user_id", "")
+            self._data.broadcaster_id = broadcaster
             self._data.username       = s.get("user_login", self.username)
 
-            started = s.get("started_at", "")
+            # Sauvegarder broadcaster_id pour EventSub (disponible même hors live)
+            if broadcaster:
+                self._config.set("twitch_broadcaster_id", broadcaster)
+
             if started:
                 try:
                     dt = datetime.fromisoformat(started.replace("Z", "+00:00"))
@@ -156,16 +211,15 @@ class TwitchService(QObject):
                 except Exception:
                     pass
 
-        # ── Dernier follower ──────────────────────────────────────────
         bid = self._data.broadcaster_id
         if not bid:
             return
         h2 = self._headers()
         if not h2:
             return
-        resp2 = self._get("/channels/followers",
-                          {"broadcaster_id": bid, "first": 1}, h2)
+        resp2 = self._get("/channels/followers", {"broadcaster_id": bid, "first": 1}, h2)
         if resp2:
             fdata = resp2.get("data", [])
             with self._lock:
-                self._data.last_follower = fdata[0]["user_name"] if fdata else ""
+                if fdata and not self._data.session_follows:
+                    self._data.last_follower = fdata[0]["user_name"]
