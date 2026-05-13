@@ -1,203 +1,256 @@
 """
-Dialog de connexion Twitch — dark mode, style Gaming premium.
+Dialog de connexion Twitch — noir / violet / or, cohérent avec le site GamePill.
 """
 
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QFrame, QWidget, QGraphicsDropShadowEffect,
+    QFrame, QWidget,
 )
-from PyQt6.QtCore import Qt, QRectF, QPointF
+from PyQt6.QtCore import Qt, QRectF, QTimer
 from PyQt6.QtGui import (
     QFont, QColor, QPainter, QPainterPath, QLinearGradient,
-    QBrush, QPen, QPolygonF,
+    QBrush, QPen,
 )
 
 
-def _sf(size: int, bold: bool = False, light: bool = False) -> QFont:
+PURPLE      = "#9146FF"
+PURPLE_DARK = "#6A0DAD"
+GOLD        = "#D4AF37"
+BLACK       = "#08080a"
+CARD        = "#0e0e12"
+RED_LIVE    = "#ff3b30"
+
+
+def _sf(size: int, bold: bool = False) -> QFont:
     f = QFont("Segoe UI", size)
     if bold:
         f.setWeight(QFont.Weight.Bold)
-    elif light:
-        f.setWeight(QFont.Weight.Light)
     return f
 
 
-class _PillButton(QPushButton):
-    """Bouton pill violet avec hover animé."""
-    def __init__(self, text: str, parent=None):
-        super().__init__(text, parent)
-        self.setFixedHeight(44)
-        self.setFont(_sf(11, bold=True))
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setStyleSheet("""
-            QPushButton {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                    stop:0 #9146FF, stop:1 #7B2FBE);
-                color: white;
-                border-radius: 22px;
-                border: none;
-                padding: 0 28px;
-            }
-            QPushButton:hover {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                    stop:0 #A970FF, stop:1 #9146FF);
-            }
-            QPushButton:pressed {
-                background: #6A0DAD;
-            }
-        """)
-
-
-class _PermRow(QWidget):
-    """Une ligne de permission avec icône et texte."""
-    def __init__(self, icon: str, text: str, parent=None):
+class _AnimDot(QWidget):
+    """Petit point rouge qui pulse comme dans la pill."""
+    def __init__(self, parent=None):
         super().__init__(parent)
-        self.setStyleSheet("background: transparent;")
-        row = QHBoxLayout(self)
-        row.setContentsMargins(0, 0, 0, 0)
-        row.setSpacing(12)
+        self.setFixedSize(8, 8)
+        self._alpha = 255
+        self._growing = False
+        t = QTimer(self)
+        t.timeout.connect(self._tick)
+        t.start(30)
 
-        icon_lbl = QLabel(icon)
-        icon_lbl.setFont(_sf(15))
-        icon_lbl.setFixedWidth(26)
-        icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        icon_lbl.setStyleSheet("background: transparent;")
+    def _tick(self):
+        self._alpha += -6 if not self._growing else 6
+        if self._alpha <= 60:  self._growing = True
+        if self._alpha >= 255: self._growing = False
+        self.update()
 
-        txt = QLabel(text)
-        txt.setFont(_sf(10))
-        txt.setStyleSheet("color: rgba(255,255,255,170); background: transparent;")
+    def paintEvent(self, _):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        p.setPen(Qt.PenStyle.NoPen)
+        c = QColor(RED_LIVE)
+        c.setAlpha(self._alpha)
+        p.setBrush(c)
+        p.drawEllipse(0, 0, 8, 8)
 
-        row.addWidget(icon_lbl)
-        row.addWidget(txt)
-        row.addStretch()
+
+class _GoldSep(QFrame):
+    """Séparateur fin dégradé or → transparent."""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedHeight(1)
+
+    def paintEvent(self, _):
+        p = QPainter(self)
+        grad = QLinearGradient(0, 0, self.width(), 0)
+        grad.setColorAt(0,   QColor(212, 175, 55, 200))
+        grad.setColorAt(0.5, QColor(145,  70, 255, 80))
+        grad.setColorAt(1,   QColor(0, 0, 0, 0))
+        p.fillRect(self.rect(), QBrush(grad))
 
 
 class TwitchConnectDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("GamePill — Connexion Twitch")
-        self.setFixedSize(420, 480)
+        self.setFixedSize(440, 500)
         self.setModal(True)
-        # Dark frameless style
-        self.setStyleSheet("QDialog { background: #0e0e10; border-radius: 16px; }")
+        self.setStyleSheet(f"""
+            QDialog {{
+                background: {BLACK};
+            }}
+            QLabel {{ background: transparent; }}
+        """)
         self._build()
 
     def _build(self):
         layout = QVBoxLayout(self)
-        layout.setSpacing(0)
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
 
-        # ── Zone header violette ──────────────────────────────────────
+        # ── Header dégradé ───────────────────────────────────────────
         header = QWidget()
-        header.setFixedHeight(110)
-        header.setStyleSheet("""
+        header.setFixedHeight(130)
+        header.setStyleSheet(f"""
             background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                stop:0 #1f0a3a, stop:1 #0e0e10);
-            border-top-left-radius: 16px;
-            border-top-right-radius: 16px;
+                stop:0 #1a0630, stop:0.6 #110422, stop:1 {BLACK});
         """)
 
         hl = QVBoxLayout(header)
-        hl.setContentsMargins(28, 20, 28, 16)
-        hl.setSpacing(6)
+        hl.setContentsMargins(28, 20, 28, 18)
+        hl.setSpacing(8)
 
+        # LIVE badge row
         badge_row = QHBoxLayout()
-        badge = QLabel("  TWITCH  ")
-        badge.setFont(_sf(9, bold=True))
-        badge.setStyleSheet(
-            "color: white; background: #9146FF; border-radius: 4px; padding: 3px 0px;"
-        )
-        badge.setFixedHeight(22)
-        badge_row.addWidget(badge)
+        badge_row.setSpacing(8)
+
+        dot = _AnimDot()
+        badge_row.addWidget(dot, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        live_lbl = QLabel("LIVE")
+        live_lbl.setFont(_sf(8, bold=True))
+        live_lbl.setStyleSheet(f"color: {RED_LIVE}; letter-spacing: 2px;")
+        badge_row.addWidget(live_lbl)
+
+        badge_row.addSpacing(12)
+
+        twitch_badge = QLabel("  TWITCH  ")
+        twitch_badge.setFont(_sf(8, bold=True))
+        twitch_badge.setStyleSheet(f"""
+            color: white;
+            background: {PURPLE};
+            border-radius: 4px;
+            padding: 3px 4px;
+            letter-spacing: 1px;
+        """)
+        badge_row.addWidget(twitch_badge)
         badge_row.addStretch()
+
         hl.addLayout(badge_row)
 
         title = QLabel("Connexion à ton compte")
-        title.setFont(_sf(17, bold=True))
-        title.setStyleSheet("color: white; background: transparent;")
+        title.setFont(_sf(18, bold=True))
+        title.setStyleSheet("color: white;")
         hl.addWidget(title)
 
-        sub = QLabel("GamePill va accéder à tes stats de stream en lecture seule.")
-        sub.setFont(_sf(9))
-        sub.setStyleSheet("color: rgba(255,255,255,120); background: transparent;")
-        sub.setWordWrap(True)
+        sub = QLabel("GamePill accède à tes stats en lecture seule.")
+        sub.setFont(_sf(10))
+        sub.setStyleSheet("color: rgba(255,255,255,0.45);")
         hl.addWidget(sub)
 
         layout.addWidget(header)
 
+        # Séparateur or
+        layout.addWidget(_GoldSep())
+
         # ── Corps ─────────────────────────────────────────────────────
         body = QWidget()
-        body.setStyleSheet("background: #0e0e10;")
+        body.setStyleSheet(f"background: {CARD};")
         bl = QVBoxLayout(body)
-        bl.setContentsMargins(28, 24, 28, 24)
+        bl.setContentsMargins(28, 24, 28, 28)
         bl.setSpacing(0)
 
         # Titre section
-        perms_title = QLabel("Accès demandés")
-        perms_title.setFont(_sf(8, bold=True))
-        perms_title.setStyleSheet(
-            "color: rgba(255,255,255,50); background: transparent; letter-spacing: 2px;"
-        )
-        bl.addWidget(perms_title)
-        bl.addSpacing(14)
+        acc_title = QLabel("ACCÈS DEMANDÉS")
+        acc_title.setFont(_sf(8, bold=True))
+        acc_title.setStyleSheet(f"color: {GOLD}; letter-spacing: 3px;")
+        bl.addWidget(acc_title)
+        bl.addSpacing(16)
 
         # Permissions
         perms = [
-            ("👁", "Nombre de viewers en direct"),
-            ("🔔", "Nouveaux follows et abonnés"),
-            ("⚡", "Pseudo récupéré automatiquement"),
+            ("👁",  "Nombre de viewers en direct"),
+            ("🔔",  "Nouveaux follows et abonnés"),
+            ("⚡",  "Pseudo récupéré automatiquement"),
         ]
         for icon, text in perms:
-            bl.addWidget(_PermRow(icon, text))
+            row = QHBoxLayout()
+            row.setSpacing(12)
+            row.setContentsMargins(0, 0, 0, 0)
+
+            ic = QLabel(icon)
+            ic.setFont(_sf(15))
+            ic.setFixedWidth(28)
+            ic.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+            tx = QLabel(text)
+            tx.setFont(_sf(10))
+            tx.setStyleSheet("color: rgba(255,255,255,0.65);")
+
+            row.addWidget(ic)
+            row.addWidget(tx)
+            row.addStretch()
+            bl.addLayout(row)
             bl.addSpacing(12)
 
         bl.addSpacing(8)
 
-        # Séparateur
-        sep = QFrame()
-        sep.setFrameShape(QFrame.Shape.HLine)
-        sep.setStyleSheet("background: rgba(255,255,255,12); border: none;")
-        sep.setFixedHeight(1)
-        bl.addWidget(sep)
-        bl.addSpacing(18)
+        # Séparateur fin
+        sep2 = QFrame()
+        sep2.setFrameShape(QFrame.Shape.HLine)
+        sep2.setStyleSheet("background: rgba(255,255,255,0.08); border: none;")
+        sep2.setFixedHeight(1)
+        bl.addWidget(sep2)
+        bl.addSpacing(16)
 
         # Vie privée
-        privacy = QLabel("🔒  Tes données restent sur ton PC. Aucun serveur externe.")
-        privacy.setFont(_sf(9))
-        privacy.setStyleSheet("color: rgba(255,255,255,60); background: transparent;")
-        privacy.setWordWrap(True)
-        bl.addWidget(privacy)
+        priv = QLabel("🔒  Données 100% locales · Aucun serveur externe")
+        priv.setFont(_sf(9))
+        priv.setStyleSheet("color: rgba(255,255,255,0.3);")
+        bl.addWidget(priv)
 
         bl.addStretch()
         bl.addSpacing(24)
 
-        # Boutons
+        # ── Boutons ───────────────────────────────────────────────────
         btns = QHBoxLayout()
         btns.setSpacing(12)
 
         cancel = QPushButton("Annuler")
-        cancel.setFixedHeight(44)
+        cancel.setFixedHeight(46)
         cancel.setFont(_sf(10))
         cancel.setCursor(Qt.CursorShape.PointingHandCursor)
         cancel.setStyleSheet("""
             QPushButton {
-                background: rgba(255,255,255,8);
-                color: rgba(255,255,255,150);
-                border-radius: 22px;
-                border: 1px solid rgba(255,255,255,15);
+                background: rgba(255,255,255,0.06);
+                color: rgba(255,255,255,0.5);
+                border-radius: 23px;
+                border: 1px solid rgba(255,255,255,0.1);
                 padding: 0 20px;
             }
-            QPushButton:hover { background: rgba(255,255,255,14); }
-            QPushButton:pressed { background: rgba(255,255,255,6); }
+            QPushButton:hover { background: rgba(255,255,255,0.1); color: white; }
+            QPushButton:pressed { background: rgba(255,255,255,0.04); }
         """)
         cancel.clicked.connect(self.reject)
 
-        connect = _PillButton("  Connecter avec Twitch  →")
+        connect = QPushButton("  Connecter avec Twitch  →")
+        connect.setFixedHeight(46)
+        connect.setFont(_sf(11, bold=True))
         connect.setDefault(True)
+        connect.setCursor(Qt.CursorShape.PointingHandCursor)
+        connect.setStyleSheet(f"""
+            QPushButton {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {PURPLE}, stop:1 {PURPLE_DARK});
+                color: white;
+                border-radius: 23px;
+                border: 1px solid rgba(212,175,55,0.25);
+                padding: 0 24px;
+            }}
+            QPushButton:hover {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #a855ff, stop:1 {PURPLE});
+                border-color: rgba(212,175,55,0.5);
+            }}
+            QPushButton:pressed {{
+                background: {PURPLE_DARK};
+            }}
+        """)
         connect.clicked.connect(self.accept)
 
-        btns.addWidget(cancel)
-        btns.addWidget(connect, 1)
+        btns.addWidget(cancel, 1)
+        btns.addWidget(connect, 2)
         bl.addLayout(btns)
 
-        layout.addWidget(body)
+        layout.addWidget(body, 1)
