@@ -196,18 +196,18 @@ class ExpandedContent(QWidget):
         self._sdot.setFont(_sf(9))
         self._sdot.setStyleSheet("color: #ff3b30; background: transparent;")
 
-        viewers_lbl = QLabel("1 247 viewers")
-        viewers_lbl.setFont(_sf(11, QFont.Weight.DemiBold))
-        viewers_lbl.setStyleSheet("color: rgba(255,255,255,200); background: transparent;")
+        self._viewers_lbl = QLabel("-- viewers")
+        self._viewers_lbl.setFont(_sf(11, QFont.Weight.DemiBold))
+        self._viewers_lbl.setStyleSheet("color: rgba(255,255,255,200); background: transparent;")
 
-        dur_lbl = QLabel("2h 14m")
-        dur_lbl.setFont(_sf(11))
-        dur_lbl.setStyleSheet("color: rgba(255,255,255,120); background: transparent;")
+        self._dur_lbl = QLabel("--")
+        self._dur_lbl.setFont(_sf(11))
+        self._dur_lbl.setStyleSheet("color: rgba(255,255,255,120); background: transparent;")
 
         stream_row.addWidget(self._sdot)
-        stream_row.addWidget(viewers_lbl)
+        stream_row.addWidget(self._viewers_lbl)
         stream_row.addStretch()
-        stream_row.addWidget(dur_lbl)
+        stream_row.addWidget(self._dur_lbl)
         layout.addLayout(stream_row)
 
         # ── Sub / follow banner ───────────────────────────────────────
@@ -225,7 +225,7 @@ class ExpandedContent(QWidget):
         star.setFont(_sf(12))
         star.setStyleSheet("color: #30d158; background: transparent; border: none;")
 
-        self._banner_text = QLabel("Nouveau sub — xX_Shadow_Xx")
+        self._banner_text = QLabel("")
         self._banner_text.setFont(_sf(10, QFont.Weight.DemiBold))
         self._banner_text.setStyleSheet("color: #30d158; background: transparent; border: none;")
 
@@ -233,6 +233,7 @@ class ExpandedContent(QWidget):
         banner_layout.addWidget(self._banner_text)
         banner_layout.addStretch()
         layout.addWidget(self._banner)
+        self._banner.setVisible(False)  # caché jusqu'à un vrai événement
 
     def _start_pulse(self):
         t = QTimer(self)
@@ -276,4 +277,17 @@ class ExpandedContent(QWidget):
         agent_card = self._cards.get("Agent")
         if agent_card:
             agent_card._val_lbl.setStyleSheet(f"color: {theme.primary}; background: transparent;")
+
+    # ── Données live Twitch ───────────────────────────────────────────
+
+    def update_stream_data(self, viewers: str, duration: str,
+                           last_event: str, is_live: bool):
+        """Appelé depuis le main thread quand TwitchService émet data_updated."""
+        self._viewers_lbl.setText(f"{viewers} viewers" if is_live else "Offline")
+        self._dur_lbl.setText(duration)
+        if last_event:
+            self._banner_text.setText(f"Nouveau follow — {last_event}")
+            self._banner.setVisible(True)
+        else:
+            self._banner.setVisible(False)
 
