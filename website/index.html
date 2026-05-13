@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GamePill — L'overlay gaming ultime</title>
+  <style>
+    :root {
+      --black:  #08080a;
+      --dark:   #0e0e12;
+      --card:   #13131a;
+      --purple: #9146FF;
+      --purple-dark: #6A0DAD;
+      --purple-glow: rgba(145,70,255,0.25);
+      --gold:   #D4AF37;
+      --gold-light: #F0D060;
+      --white:  #ffffff;
+      --muted:  rgba(255,255,255,0.5);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--black);
+      color: var(--white);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* ── NAV ─────────────────────────────────────── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 48px;
+      background: rgba(8,8,10,0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(145,70,255,0.15);
+    }
+
+    .nav-logo {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 20px; font-weight: 700; text-decoration: none;
+      color: var(--white);
+    }
+    .nav-logo .pill-icon {
+      width: 32px; height: 20px;
+      background: var(--purple);
+      border-radius: 999px;
+      border: 2px solid var(--gold);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px;
+    }
+    .nav-logo span { color: var(--gold); }
+
+    .nav-links { display: flex; gap: 32px; }
+    .nav-links a {
+      color: var(--muted); text-decoration: none; font-size: 14px;
+      transition: color .2s;
+    }
+    .nav-links a:hover { color: var(--white); }
+
+    .nav-cta {
+      background: var(--purple); color: white;
+      padding: 10px 24px; border-radius: 999px;
+      font-size: 14px; font-weight: 600; text-decoration: none;
+      transition: background .2s, transform .15s;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .nav-cta:hover { background: #a855ff; transform: translateY(-1px); }
+
+    /* ── HERO ────────────────────────────────────── */
+    .hero {
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center;
+      padding: 120px 24px 80px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-bg {
+      position: absolute; inset: 0; z-index: 0;
+      background:
+        radial-gradient(ellipse 60% 50% at 50% 0%, rgba(145,70,255,0.18) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 30% at 80% 80%, rgba(212,175,55,0.08) 0%, transparent 60%);
+    }
+
+    /* Circuit lines */
+    .hero-bg::after {
+      content: '';
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(145,70,255,0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(145,70,255,0.06) 1px, transparent 1px);
+      background-size: 60px 60px;
+    }
+
+    .hero-content { position: relative; z-index: 1; max-width: 800px; }
+
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(145,70,255,0.12);
+      border: 1px solid rgba(145,70,255,0.35);
+      border-radius: 999px;
+      padding: 8px 20px;
+      font-size: 13px; font-weight: 600;
+      color: var(--purple);
+      margin-bottom: 32px;
+      letter-spacing: 0.5px;
+    }
+    .hero-badge .dot {
+      width: 7px; height: 7px;
+      background: #ff3b30; border-radius: 50%;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
+
+    .hero h1 {
+      font-size: clamp(42px, 7vw, 80px);
+      font-weight: 800;
+      line-height: 1.05;
+      margin-bottom: 24px;
+      letter-spacing: -2px;
+    }
+    .hero h1 .gold { color: var(--gold); }
+    .hero h1 .purple { color: var(--purple); }
+
+    .hero-sub {
+      font-size: clamp(16px, 2vw, 20px);
+      color: var(--muted);
+      line-height: 1.6;
+      max-width: 560px;
+      margin: 0 auto 48px;
+    }
+
+    .hero-ctas {
+      display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--purple), var(--purple-dark));
+      color: white; padding: 16px 36px;
+      border-radius: 999px; font-size: 16px; font-weight: 700;
+      text-decoration: none;
+      border: 1px solid rgba(255,255,255,0.12);
+      transition: all .2s;
+      box-shadow: 0 0 32px rgba(145,70,255,0.35);
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 48px rgba(145,70,255,0.5);
+    }
+
+    .btn-secondary {
+      background: rgba(255,255,255,0.06);
+      color: var(--white); padding: 16px 36px;
+      border-radius: 999px; font-size: 16px; font-weight: 600;
+      text-decoration: none;
+      border: 1px solid rgba(255,255,255,0.12);
+      transition: all .2s;
+    }
+    .btn-secondary:hover { background: rgba(255,255,255,0.1); transform: translateY(-2px); }
+
+    /* ── PILL MOCKUP ─────────────────────────────── */
+    .pill-demo {
+      margin-top: 72px;
+      display: flex; justify-content: center;
+    }
+
+    .pill-mockup {
+      background: rgba(4,4,6,0.96);
+      border: 1px solid rgba(145,70,255,0.3);
+      border-radius: 999px;
+      padding: 12px 28px;
+      display: inline-flex; align-items: center; gap: 12px;
+      font-size: 14px; font-weight: 600;
+      box-shadow:
+        0 0 0 1px rgba(145,70,255,0.1),
+        0 20px 60px rgba(0,0,0,0.8),
+        0 0 80px rgba(145,70,255,0.1);
+      position: relative;
+    }
+    .pill-mockup .live-dot {
+      width: 7px; height: 7px; background: #ff3b30;
+      border-radius: 50%; animation: pulse 1.5s ease-in-out infinite;
+    }
+    .pill-mockup .live-txt { color: #ff3b30; font-size: 11px; letter-spacing: 2px; font-weight: 700; }
+    .pill-mockup .sep { width: 1px; height: 14px; background: rgba(255,255,255,0.2); }
+    .pill-mockup .game { color: var(--purple); font-weight: 700; }
+    .pill-mockup .kda { color: rgba(255,255,255,0.6); }
+    .pill-mockup .viewers { color: rgba(255,255,255,0.85); }
+
+    /* ── FEATURES ────────────────────────────────── */
+    .section {
+      padding: 100px 24px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .section-label {
+      font-size: 12px; font-weight: 700; letter-spacing: 3px;
+      color: var(--gold); text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-size: clamp(28px, 4vw, 48px);
+      font-weight: 800; line-height: 1.1;
+      letter-spacing: -1px;
+      margin-bottom: 16px;
+    }
+
+    .section-sub {
+      font-size: 16px; color: var(--muted); max-width: 520px;
+      line-height: 1.6; margin-bottom: 60px;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 24px;
+    }
+
+    .feature-card {
+      background: var(--card);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 20px;
+      padding: 32px;
+      transition: border-color .2s, transform .2s;
+      position: relative; overflow: hidden;
+    }
+    .feature-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(145,70,255,0.5), transparent);
+      opacity: 0; transition: opacity .3s;
+    }
+    .feature-card:hover { border-color: rgba(145,70,255,0.3); transform: translateY(-4px); }
+    .feature-card:hover::before { opacity: 1; }
+
+    .feature-icon {
+      width: 48px; height: 48px;
+      background: rgba(145,70,255,0.15);
+      border: 1px solid rgba(145,70,255,0.25);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; margin-bottom: 20px;
+    }
+    .feature-icon.gold { background: rgba(212,175,55,0.12); border-color: rgba(212,175,55,0.25); }
+
+    .feature-card h3 { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+    .feature-card p { font-size: 14px; color: var(--muted); line-height: 1.65; }
+
+    /* ── HOW IT WORKS ─────────────────────────────── */
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 32px; counter-reset: steps;
+    }
+
+    .step { position: relative; counter-increment: steps; }
+    .step::before {
+      content: counter(steps);
+      display: flex; align-items: center; justify-content: center;
+      width: 40px; height: 40px;
+      background: linear-gradient(135deg, var(--purple), var(--purple-dark));
+      border-radius: 50%;
+      font-size: 16px; font-weight: 800;
+      margin-bottom: 16px;
+      box-shadow: 0 0 24px rgba(145,70,255,0.4);
+    }
+    .step h3 { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+    .step p { font-size: 14px; color: var(--muted); line-height: 1.6; }
+
+    /* ── GAMES ────────────────────────────────────── */
+    .games-row {
+      display: flex; flex-wrap: wrap; gap: 12px;
+    }
+
+    .game-tag {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 999px;
+      padding: 8px 18px;
+      font-size: 13px; font-weight: 600;
+      color: rgba(255,255,255,0.7);
+      transition: all .2s;
+    }
+    .game-tag:hover {
+      background: rgba(145,70,255,0.15);
+      border-color: rgba(145,70,255,0.4);
+      color: var(--white);
+    }
+
+    /* ── DIVIDER ──────────────────────────────────── */
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(145,70,255,0.3), rgba(212,175,55,0.2), transparent);
+      margin: 0 auto;
+      max-width: 900px;
+    }
+
+    /* ── CTA SECTION ──────────────────────────────── */
+    .cta-section {
+      text-align: center;
+      padding: 100px 24px;
+      position: relative; overflow: hidden;
+    }
+    .cta-section::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 60% 80% at 50% 50%, rgba(145,70,255,0.12) 0%, transparent 70%);
+    }
+    .cta-section > * { position: relative; }
+    .cta-section h2 { font-size: clamp(32px, 5vw, 56px); font-weight: 800; letter-spacing: -1px; margin-bottom: 16px; }
+    .cta-section p { font-size: 18px; color: var(--muted); margin-bottom: 40px; }
+
+    /* ── FOOTER ───────────────────────────────────── */
+    footer {
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding: 40px 48px;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 16px;
+    }
+    footer .logo { font-size: 16px; font-weight: 700; }
+    footer .logo span { color: var(--gold); }
+    footer p { font-size: 13px; color: var(--muted); }
+
+    /* ── GLOW DIVIDERS ────────────────────────────── */
+    .glow-line {
+      width: 60px; height: 3px;
+      background: linear-gradient(90deg, var(--purple), var(--gold));
+      border-radius: 999px;
+      margin-bottom: 24px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-logo">
+    <div class="pill-icon">⚡</div>
+    Game<span>Pill</span>
+  </a>
+  <div class="nav-links">
+    <a href="#features">Fonctionnalités</a>
+    <a href="#how">Comment ça marche</a>
+    <a href="#games">Jeux supportés</a>
+  </div>
+  <a href="#download" class="nav-cta">Télécharger</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-content">
+    <div class="hero-badge">
+      <div class="dot"></div>
+      LIVE OVERLAY · WINDOWS
+    </div>
+    <h1>
+      Ton overlay gaming<br>
+      <span class="purple">intelligent</span> &amp; <span class="gold">stylé</span>
+    </h1>
+    <p class="hero-sub">
+      GamePill affiche tes stats en temps réel, tes viewers Twitch et tes performances
+      dans une pill discrète en haut de ton écran. Comme le Dynamic Island d'Apple,
+      mais pour les gamers.
+    </p>
+    <div class="hero-ctas">
+      <a href="#download" class="btn-primary">⬇ Télécharger gratuitement</a>
+      <a href="#features" class="btn-secondary">Voir les fonctionnalités →</a>
+    </div>
+
+    <!-- Pill mockup -->
+    <div class="pill-demo">
+      <div class="pill-mockup">
+        <div class="live-dot"></div>
+        <span class="live-txt">LIVE</span>
+        <div class="sep"></div>
+        <span>🟣</span>
+        <span class="viewers">1 247</span>
+        <div class="sep"></div>
+        <span class="game">VALORANT</span>
+        <span class="kda">8 / 2 / 5</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="section" id="features">
+  <div class="section-label">Fonctionnalités</div>
+  <div class="glow-line"></div>
+  <h2 class="section-title">Tout ce dont tu as besoin,<br>sans quitter le jeu</h2>
+  <p class="section-sub">Une pill ultra-discrète en haut de ton écran qui s'étend en un clic pour révéler tes stats.</p>
+
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon">🎮</div>
+      <h3>Détection automatique</h3>
+      <p>GamePill détecte ton jeu en cours et adapte automatiquement le thème et les couleurs. 15 jeux supportés.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📊</div>
+      <h3>Stats en temps réel</h3>
+      <p>KDA, rank, agent/personnage — toutes tes stats accessibles d'un clic sans Alt+Tab.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon" style="font-size:18px">🟣</div>
+      <h3>Twitch intégré</h3>
+      <p>Viewers en direct, durée du stream, derniers follows — connecte ton compte en un clic, comme OBS.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon gold">⚡</div>
+      <h3>Dynamic Island style</h3>
+      <p>Inspiré du Dynamic Island d'Apple — pill compacte, animations fluides, totalement non-intrusive.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon gold">🖥</div>
+      <h3>Multi-écrans</h3>
+      <p>Glisse la pill sur n'importe quel écran. Elle mémorise sa position pour chaque configuration.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🔒</div>
+      <h3>100% local</h3>
+      <p>Aucun serveur externe. Tes données restent sur ton PC. Chiffrement AES-256 pour les tokens.</p>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- HOW IT WORKS -->
+<section class="section" id="how">
+  <div class="section-label">Comment ça marche</div>
+  <div class="glow-line"></div>
+  <h2 class="section-title">Prêt en 60 secondes</h2>
+  <p class="section-sub">Aucune config complexe. Lance, connecte, joue.</p>
+
+  <div class="steps">
+    <div class="step">
+      <h3>Télécharge GamePill</h3>
+      <p>Un seul fichier .exe — aucune installation, aucune dépendance. Lance et c'est parti.</p>
+    </div>
+    <div class="step">
+      <h3>Connecte Twitch</h3>
+      <p>Clique "Connecter" dans le menu systray. Autorise en un clic dans ton navigateur. C'est tout.</p>
+    </div>
+    <div class="step">
+      <h3>Lance ton jeu</h3>
+      <p>GamePill détecte automatiquement le jeu, adapte les couleurs et affiche tes stats.</p>
+    </div>
+    <div class="step">
+      <h3>Joue !</h3>
+      <p>La pill reste discrète en haut de l'écran. Un clic pour voir le détail, un autre pour la replier.</p>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- GAMES -->
+<section class="section" id="games">
+  <div class="section-label">Jeux supportés</div>
+  <div class="glow-line"></div>
+  <h2 class="section-title">15 jeux, et ça grandit</h2>
+  <p class="section-sub" style="margin-bottom:32px">Thèmes et couleurs adaptés pour chaque jeu. D'autres arrivent.</p>
+
+  <div class="games-row">
+    <span class="game-tag">🔴 VALORANT</span>
+    <span class="game-tag">⚔ League of Legends</span>
+    <span class="game-tag">🔫 CS2</span>
+    <span class="game-tag">🌪 Fortnite</span>
+    <span class="game-tag">🔶 Apex Legends</span>
+    <span class="game-tag">🚗 Rocket League</span>
+    <span class="game-tag">💀 Call of Duty</span>
+    <span class="game-tag">🌿 Minecraft</span>
+    <span class="game-tag">🎮 Overwatch 2</span>
+    <span class="game-tag">🗡 Dota 2</span>
+    <span class="game-tag">🃏 Hearthstone</span>
+    <span class="game-tag">🔪 Dead by Daylight</span>
+    <span class="game-tag">🏙 GTA Online</span>
+    <span class="game-tag">🎯 PUBG</span>
+    <span class="game-tag">+ bientôt d'autres…</span>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section" id="download">
+  <h2>Prêt à <span style="color:var(--purple)">upgrader</span> ton setup ?</h2>
+  <p>Gratuit. Sans pub. Sans serveur. Juste toi et tes stats.</p>
+  <a href="#" class="btn-primary" style="font-size:18px; padding:18px 48px;">
+    ⬇ &nbsp;Télécharger GamePill — Windows
+  </a>
+  <p style="margin-top:20px; font-size:13px; color:rgba(255,255,255,0.3);">
+    Windows 10/11 · Python ou .exe · Open source sur GitHub
+  </p>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="logo">Game<span>Pill</span></div>
+  <p>© 2025 GamePill — Fait avec ⚡ pour les streamers gamers</p>
+  <a href="https://github.com/wedoee-collab/GamePill" style="color:rgba(255,255,255,0.4);font-size:13px;text-decoration:none;">GitHub →</a>
+</footer>
+
+</body>
+</html>

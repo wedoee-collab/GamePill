@@ -148,7 +148,6 @@ class PillWidget(QWidget):
             | Qt.WindowType.NoDropShadowWindowHint
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
         self.resize(W_COL, H_COL)
 
     def _build_ui(self):
@@ -286,13 +285,6 @@ class PillWidget(QWidget):
 
     def _on_anim_tick(self, p: float):
         self.resize(int(W_COL + (W_EXP - W_COL) * p), int(H_COL + (H_EXP - H_COL) * p))
-        self._apply_mask()
-
-    def _apply_mask(self):
-        """Masque pixel-perfect pour supprimer les artefacts de coins."""
-        path = QPainterPath()
-        path.addRoundedRect(QRectF(self.rect()), RADIUS, RADIUS)
-        self.setMask(QRegion(path.toFillPolygon().toPolygon()))
 
     def _reveal_expanded(self):
         self._exp.setVisible(True)
@@ -301,13 +293,8 @@ class PillWidget(QWidget):
         self._fade_anim.setEndValue(1.0)
         self._fade_anim.start()
 
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        self._apply_mask()
-
     def showEvent(self, event):
         super().showEvent(event)
-        self._apply_mask()
         if self._first_show:
             self._first_show = False
             ty = self.y()
@@ -442,6 +429,11 @@ class PillWidget(QWidget):
     def paintEvent(self, _):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        # Efface tout en transparent — élimine les artefacts de coins
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
+        painter.fillRect(self.rect(), Qt.GlobalColor.transparent)
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
 
         w, h = self.width(), self.height()
         rect = QRectF(0.5, 0.5, w - 1, h - 1)
