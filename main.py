@@ -14,8 +14,8 @@ os.environ["QT_ENABLE_HIGHDPI_SCALING"] = "1"
 os.environ["QT_SCALE_FACTOR_ROUNDING_POLICY"] = "PassThrough"
 
 from PyQt6.QtWidgets import QApplication, QSystemTrayIcon, QMenu, QMessageBox
-from PyQt6.QtGui import QPainter, QPixmap, QColor, QIcon, QFont, QAction
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtGui import QPainter, QPixmap, QColor, QIcon, QFont, QAction, QPen, QPainterPath
+from PyQt6.QtCore import Qt, QTimer, QRectF
 
 from ui.pill_widget import PillWidget, PLATFORM_TWITCH, PLATFORM_NONE
 from ui.setup_dialog import TwitchConnectDialog
@@ -28,8 +28,6 @@ from core.themes import THEMES
 
 def _make_tray_icon() -> QIcon:
     """Pill noire avec un point rouge LIVE — comme le widget."""
-    from PyQt6.QtGui import QPainterPath
-    from PyQt6.QtCore import QRectF
     px = QPixmap(32, 16)
     px.fill(Qt.GlobalColor.transparent)
     p = QPainter(px)
