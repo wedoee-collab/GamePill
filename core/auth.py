@@ -12,7 +12,7 @@ import uuid
 import warnings
 import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlencode, urlparse
 
 import httpx
 
@@ -101,24 +101,29 @@ class TwitchAuth:
         verifier, challenge = self._pkce()
         state = secrets.token_urlsafe(16)
 
-        url = (
-            f"{AUTH_URL}?client_id={self.client_id}"
-            f"&redirect_uri={REDIRECT_URI}"
-            f"&response_type=code"
-            f"&scope={SCOPES.replace(' ', '+')}"
-            f"&code_challenge={challenge}"
-            f"&code_challenge_method=S256"
-            f"&state={state}"
-            f"&force_verify=true"
-        )
+        params = urlencode({
+            "client_id":            self.client_id,
+            "redirect_uri":         REDIRECT_URI,
+            "response_type":        "code",
+            "scope":                SCOPES,
+            "code_challenge":       challenge,
+            "code_challenge_method":"S256",
+            "state":                state,
+        })
+        url = f"{AUTH_URL}?{params}"
+        print(f"[Auth] URL OAuth ouverte (state={state[:8]}…)")
 
         code_box: list[str | None] = [None]
 
         class _Handler(BaseHTTPRequestHandler):
             def do_GET(self):
-                params = parse_qs(urlparse(self.path).query)
+                parsed = urlparse(self.path)
+                params = parse_qs(parsed.query)
                 if "code" in params:
                     code_box[0] = params["code"][0]
+                    print(f"[Auth] Code reçu via callback (path={parsed.path})")
+                else:
+                    print(f"[Auth] Requête ignorée (pas de code) : {parsed.path}")
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
                 self.end_headers()
@@ -132,13 +137,22 @@ class TwitchAuth:
             def log_message(self, *args):
                 pass
 
-        webbrowser.open(url)
+        # Démarre le serveur AVANT d'ouvrir le navigateur
         srv = HTTPServer(("localhost", 3000), _Handler)
         srv.timeout = 180
-        srv.handle_request()
+        webbrowser.open(url)
+
+        # Boucle : gère jusqu'à 10 requêtes (favicon, preflight, etc.)
+        # jusqu'à obtenir le vrai code OAuth
+        for _ in range(10):
+            srv.handle_request()
+            if code_box[0]:
+                break
+
         srv.server_close()
 
         if not code_box[0]:
+            print("[Auth] Aucun code reçu après 10 requêtes ou timeout")
             return False
         return self._exchange(code_box[0], verifier)
 
@@ -153,7 +167,9 @@ class TwitchAuth:
                 "redirect_uri":  REDIRECT_URI,
             }, timeout=10, verify=False)
             print(f"[Auth] Réponse Twitch : HTTP {r.status_code}")
-            r.raise_for_status()
+            if r.status_code != 200:
+                print(f"[Auth] Body erreur Twitch : {r.text}")
+                r.raise_for_status()
             d = r.json()
             if "access_token" not in d:
                 print(f"[Auth] Pas de access_token dans la réponse : {d}")
