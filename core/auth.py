@@ -58,7 +58,9 @@ class TwitchAuth:
 
     @property
     def is_connected(self) -> bool:
-        return bool(self._load("access"))
+        result = bool(self._load("access"))
+        print(f"[Auth] is_connected → {result}")
+        return result
 
     # ── PKCE ─────────────────────────────────────────────────────────
 
@@ -84,6 +86,7 @@ class TwitchAuth:
         from PyQt6.QtCore import QTimer
         try:
             ok = self._do_oauth()
+            print(f"[Auth] _do_oauth() → {'succès' if ok else 'échec'}")
             QTimer.singleShot(0, on_success if ok else on_failure)
         except Exception as e:
             print(f"[Auth] Erreur OAuth : {e}")
@@ -136,6 +139,7 @@ class TwitchAuth:
 
     def _exchange(self, code: str, verifier: str) -> bool:
         try:
+            print(f"[Auth] Échange du code contre un token…")
             r = httpx.post(TOKEN_URL, data={
                 "client_id":     self.client_id,
                 "code":          code,
@@ -143,10 +147,13 @@ class TwitchAuth:
                 "grant_type":    "authorization_code",
                 "redirect_uri":  REDIRECT_URI,
             }, timeout=10)
+            print(f"[Auth] Réponse Twitch : HTTP {r.status_code}")
             r.raise_for_status()
             d = r.json()
+            if "access_token" not in d:
+                print(f"[Auth] Pas de access_token dans la réponse : {d}")
+                return False
             self._save(d["access_token"], d.get("refresh_token", ""))
-            # Récupère le pseudo automatiquement
             self._fetch_and_save_username(d["access_token"])
             return True
         except Exception as e:
@@ -229,10 +236,21 @@ class TwitchAuth:
         self._config.set("twitch_display_name",   None)
 
     def _save(self, access: str, refresh: str):
-        self._config.set("twitch_access_token", self._enc(access))
+        enc_access = self._enc(access)
+        self._config.set("twitch_access_token", enc_access)
+        print(f"[Auth] Token sauvegardé (longueur chiffrée : {len(enc_access)})")
         if refresh:
             self._config.set("twitch_refresh_token", self._enc(refresh))
+        # Vérification immédiate
+        check = self._load("access")
+        print(f"[Auth] Vérification post-save : {'OK ✓' if check else 'ECHEC ✗'}")
 
     def _load(self, kind: str) -> str | None:
         raw = self._config.get(f"twitch_{kind}_token")
-        return self._dec(raw) if raw else None
+        if not raw:
+            print(f"[Auth] _load({kind}) : aucune valeur en config")
+            return None
+        result = self._dec(raw)
+        if not result:
+            print(f"[Auth] _load({kind}) : déchiffrement échoué")
+        return result
