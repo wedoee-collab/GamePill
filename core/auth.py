@@ -127,12 +127,39 @@ class TwitchAuth:
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
                 self.end_headers()
-                self.wfile.write(
-                    b"<html><body style='font-family:sans-serif;text-align:center;margin-top:80px'>"
-                    b"<h2>\xe2\x9c\x85 GamePill connect\xc3\xa9 !</h2>"
-                    b"<p>Tu peux fermer cet onglet et retourner dans le jeu.</p>"
-                    b"</body></html>"
-                )
+                self.wfile.write((
+                    "<!DOCTYPE html><html><head><meta charset='utf-8'>"
+                    "<title>GamePill connecté</title>"
+                    "<style>"
+                    "*{margin:0;padding:0;box-sizing:border-box}"
+                    "body{background:#0e0e10;font-family:'Segoe UI',system-ui,sans-serif;"
+                    "display:flex;align-items:center;justify-content:center;"
+                    "min-height:100vh;color:white}"
+                    ".card{text-align:center;padding:48px 56px;max-width:420px}"
+                    ".pill{display:inline-flex;align-items:center;gap:8px;"
+                    "background:#1a0a2e;border:1px solid rgba(145,70,255,.3);"
+                    "border-radius:999px;padding:8px 20px;margin-bottom:32px}"
+                    ".dot{width:8px;height:8px;border-radius:50%;background:#ff3b30;"
+                    "animation:pulse 1.5s ease-in-out infinite}"
+                    "@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}"
+                    ".pill-txt{font-size:13px;font-weight:700;letter-spacing:2px;color:#ff3b30}"
+                    "h1{font-size:28px;font-weight:700;margin-bottom:12px}"
+                    "h1 span{color:#9146FF}"
+                    "p{font-size:14px;color:rgba(255,255,255,.5);line-height:1.6;"
+                    "margin-bottom:32px}"
+                    ".badge{display:inline-block;background:rgba(145,70,255,.15);"
+                    "border:1px solid rgba(145,70,255,.3);border-radius:8px;"
+                    "padding:10px 20px;font-size:13px;color:rgba(255,255,255,.7)}"
+                    "</style></head><body>"
+                    "<div class='card'>"
+                    "<div class='pill'><div class='dot'></div>"
+                    "<span class='pill-txt'>LIVE</span></div>"
+                    "<h1>Connecté à <span>Twitch</span> !</h1>"
+                    "<p>GamePill est maintenant lié à ton compte.<br>"
+                    "Tu peux fermer cet onglet et retourner dans le jeu.</p>"
+                    "<div class='badge'>🎮 Retourne dans le jeu !</div>"
+                    "</div></body></html>"
+                ).encode("utf-8"))
 
             def log_message(self, *args):
                 pass
