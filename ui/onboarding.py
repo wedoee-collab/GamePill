@@ -71,7 +71,7 @@ _PAGES = [
         "icon":  "🎮",
         "title": "Stats jeu en temps réel",
         "body":  (
-            "GamePill détecte automatiquement ton jeu (15 jeux supportés).\n\n"
+            "GamePill détecte automatiquement ton jeu (14 jeux supportés).\n\n"
             "Pour Valorant / League of Legends :\n"
             "→ Configure ton Riot ID dans Menu → Riot\n\n"
             "Pour CS2 — stats GSI temps réel :\n"
