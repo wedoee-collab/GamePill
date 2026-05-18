@@ -15,16 +15,17 @@ APP_NAME = "GamePill"
 
 
 def _app_command() -> str:
-    """Commande à enregistrer selon qu'on tourne en .exe ou en Python."""
+    """Commande a enregistrer. Le drapeau --autostart signale a GamePill
+    qu'il est lance par Windows (pour ne pas afficher l'ecran de bienvenue)."""
     if getattr(sys, "frozen", False):
-        # Mode packagé PyInstaller — sys.executable est le .exe
-        return f'"{sys.executable}"'
+        # Mode package PyInstaller : sys.executable est le .exe
+        return f'"{sys.executable}" --autostart'
     else:
-        # Mode dev — python.exe + chemin absolu de main.py
+        # Mode dev : python.exe + chemin absolu de main.py
         main_path = os.path.abspath(
             os.path.join(os.path.dirname(__file__), "..", "main.py")
         )
-        return f'"{sys.executable}" "{main_path}"'
+        return f'"{sys.executable}" "{main_path}" --autostart'
 
 
 def _open_run_key(write: bool = False):
@@ -73,3 +74,17 @@ def toggle() -> bool:
     else:
         enable()
         return True
+
+
+def sync():
+    """Réaligne la commande enregistrée sur la commande actuelle.
+    Sert à intégrer le drapeau --autostart aux entrées créées avant."""
+    if not is_enabled():
+        return
+    try:
+        with _open_run_key() as key:
+            current, _ = winreg.QueryValueEx(key, APP_NAME)
+        if current != _app_command():
+            enable()
+    except Exception as e:
+        log.warning("Autostart sync échoué : %s", e)

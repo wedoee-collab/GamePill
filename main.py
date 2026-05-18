@@ -42,6 +42,7 @@ from ui.youtube_dialog import YouTubeConnectDialog
 from ui.riot_dialog import RiotDialog
 from ui.kick_dialog import KickConnectDialog
 from ui.settings_window import SettingsWindow
+from ui.welcome_window import WelcomeWindow
 from ui.onboarding import OnboardingWizard, should_show as _should_onboard
 from services.game_detector import GameDetector
 from services.twitch_service import TwitchService
@@ -218,14 +219,27 @@ def main():
     settings_window = SettingsWindow(config)
     settings_window.setWindowIcon(_make_tray_icon())
 
-    # ── Onboarding premier lancement ─────────────────────────────────
-    if _should_onboard(config):
-        QTimer.singleShot(800, lambda: _show_onboarding(config))
+    # ── Onboarding / écran de bienvenue ──────────────────────────────
+    _autostarted = "--autostart" in sys.argv
 
     def _show_onboarding(cfg):
         dlg = OnboardingWizard()
         dlg.exec()
         cfg.set("onboarding_done", True)
+
+    def _show_welcome():
+        w = WelcomeWindow(config, _make_tray_icon())
+        w.exec()
+        if w.wants_settings:
+            open_settings()
+
+    if _should_onboard(config):
+        QTimer.singleShot(800, lambda: _show_onboarding(config))
+    elif not _autostarted and config.get("welcome_enabled", True):
+        QTimer.singleShot(700, _show_welcome)
+
+    # Réaligne l'entrée d'autostart existante sur la nouvelle commande
+    autostart.sync()
 
     # ── Game detector ─────────────────────────────────────────────────
     def on_game_changed(key: str, theme):
