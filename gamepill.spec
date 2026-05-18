@@ -98,6 +98,6 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    # icon="assets/gamepill.ico",   # décommente si tu as une icône .ico
+    icon="assets/gamepill.ico",
     version_file=None,
 )
