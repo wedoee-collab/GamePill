@@ -232,9 +232,8 @@ class ExpandedContent(QWidget):
         self._cards["Deaths"].set_value(kda.get("d", "--"))
         self._cards["Assists"].set_value(kda.get("a", "--"))
         self._cards["Agent"].set_value(kda.get("agent") or "—")
-        # Score / HS rate : placeholder jusqu'à intégration API réelle
-        self._cards["Score"].set_value("--")
-        self._cards["HS rate"].set_value("--")
+        self._cards["Score"].set_value(kda.get("score", "--"))
+        self._cards["HS rate"].set_value(kda.get("hs", "--"))
 
         # Couleurs dynamiques
         self._cards["Assists"].set_color(theme.secondary)

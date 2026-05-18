@@ -195,6 +195,24 @@ def main():
 
     cs2_gsi.stats_updated.connect(on_cs2_stats)
 
+    # ── Steam — stats CS2 à vie ───────────────────────────────────────
+    def on_steam_data(d):
+        # Affichées seulement hors partie : le GSI live est prioritaire
+        if cs2_gsi.is_running and cs2_gsi.last_kda():
+            return
+        kda = {
+            "k":     d.kills,
+            "d":     d.deaths,
+            "a":     d.assists,
+            "score": d.kd_fmt(),
+            "hs":    d.hs_pct(),
+            "agent": "À vie",
+            "rank":  f"{d.wins} victoires" if d.wins else "",
+        }
+        pill.apply_theme(THEMES["cs2"], kda, [])
+
+    steam_svc.data_updated.connect(on_steam_data)
+
     # ── Riot API ─────────────────────────────────────────────────────
     def on_riot_data(game_key: str, kda: dict, history: list):
         pill.apply_theme(THEMES.get(game_key, THEMES["default"]), kda, history)
