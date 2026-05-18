@@ -4,7 +4,6 @@ Twitch EventSub — transport WebSocket.
 """
 
 import json
-import ssl
 import threading
 
 import httpx
@@ -62,9 +61,7 @@ class TwitchEventSub(QObject):
                     on_error=self._on_error,
                     on_close=self._on_close,
                 )
-                # verify=False équivalent pour websocket
                 self._ws.run_forever(
-                    sslopt={"cert_reqs": ssl.CERT_NONE},
                     ping_interval=30,
                     ping_timeout=10,
                 )
@@ -175,7 +172,7 @@ class TwitchEventSub(QObject):
         for sub in subscriptions:
             try:
                 r = httpx.post(HELIX_SUBS, json=sub, headers=headers,
-                               timeout=8, verify=False)
+                               timeout=8)
                 if r.status_code not in (200, 202):
                     log.warning("Souscription %s échouée : HTTP %d — %s",
                                 sub["type"], r.status_code, r.text[:200])

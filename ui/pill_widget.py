@@ -474,19 +474,21 @@ class PillWidget(QWidget):
         game_color = _safe_color(theme.primary)
 
         k, d, a = kda.get("k", "--"), kda.get("d", "--"), kda.get("a", "--")
-        has_game = str(k) != "--"
+        has_game = theme is not THEMES["default"]   # jeu détecté
+        has_kda  = str(k) != "--"                    # vraies stats dispo
 
         if has_game:
             self._game_lbl.setText(theme.name)
             self._game_lbl.setStyleSheet(f"color: {game_color}; background: transparent;")
-            self._kda_lbl.setText(f"  {k} / {d} / {a}")
-            self._kda_lbl.setStyleSheet("color: rgba(255,255,255,160); background: transparent;")
-            self._sep2.setVisible(True)
         else:
             self._game_lbl.setText("En attente…")
             self._game_lbl.setStyleSheet("color: rgba(255,255,255,80); background: transparent;")
+
+        if has_kda:
+            self._kda_lbl.setText(f"  {k} / {d} / {a}")
+            self._kda_lbl.setStyleSheet("color: rgba(255,255,255,160); background: transparent;")
+        else:
             self._kda_lbl.setText("")
-            self._sep2.setVisible(False)
 
         self._st["game"] = has_game
         self._exp.apply_theme(theme, kda, history)

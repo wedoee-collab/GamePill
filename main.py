@@ -17,6 +17,15 @@ os.environ["QT_SCALE_FACTOR_ROUNDING_POLICY"] = "PassThrough"
 import core.logger as _log_mod
 log = _log_mod.setup()
 
+# Vérification SSL via le magasin de certificats Windows : gère les
+# proxys d'entreprise sans désactiver la sécurité (remplace verify=False).
+try:
+    import truststore
+    truststore.inject_into_ssl()
+    log.info("truststore actif : SSL via le magasin de certificats Windows")
+except Exception as _e:
+    log.warning("truststore indisponible (%s) : SSL par défaut", _e)
+
 from PyQt6.QtWidgets import (
     QApplication, QSystemTrayIcon, QMenu, QMessageBox,
 )
@@ -25,6 +34,7 @@ from PyQt6.QtGui import (
     QPen, QPainterPath, QBrush,
 )
 from PyQt6.QtCore import Qt, QTimer, QRectF
+from PyQt6.QtNetwork import QLocalServer, QLocalSocket
 
 from ui.pill_widget import PillWidget, PLATFORM_TWITCH, PLATFORM_YOUTUBE, PLATFORM_KICK, PLATFORM_NONE
 from ui.setup_dialog import TwitchConnectDialog
@@ -131,7 +141,23 @@ QMenu::indicator:unchecked {
 """
 
 
+_SINGLETON_NAME = "GamePill_singleton"
+
+
+def _resource(rel: str) -> str:
+    """Chemin d'une ressource, en mode dev comme en .exe PyInstaller."""
+    base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base, rel)
+
+
 def _make_tray_icon() -> QIcon:
+    # Vrai logo GamePill si disponible
+    _ico = _resource(os.path.join("assets", "gamepill.ico"))
+    if os.path.exists(_ico):
+        icon = QIcon(_ico)
+        if not icon.isNull():
+            return icon
+    # Repli : pilule dessinée
     px = QPixmap(32, 16)
     px.fill(Qt.GlobalColor.transparent)
     p = QPainter(px)
@@ -158,6 +184,22 @@ def main():
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
     app.setFont(QFont("Segoe UI", 10))
+
+    # ── Instance unique ───────────────────────────────────────────────
+    # Si GamePill tourne déjà, on lui demande d'ouvrir les réglages et on quitte.
+    _probe = QLocalSocket()
+    _probe.connectToServer(_SINGLETON_NAME)
+    if _probe.waitForConnected(300):
+        _probe.write(b"show")
+        _probe.flush()
+        _probe.waitForBytesWritten(500)
+        _probe.disconnectFromServer()
+        log.info("GamePill déjà lancé — réglages demandés, fermeture du doublon")
+        return
+    _probe.abort()
+    QLocalServer.removeServer(_SINGLETON_NAME)
+    _singleton_server = QLocalServer(app)
+    _singleton_server.listen(_SINGLETON_NAME)
 
     config      = Config()
     twitch_auth = TwitchAuth(config)
@@ -850,6 +892,13 @@ def main():
         settings_window.show()
         settings_window.raise_()
         settings_window.activateWindow()
+
+    def _on_singleton_connection():
+        conn = _singleton_server.nextPendingConnection()
+        if conn is not None:
+            conn.close()
+        open_settings()
+    _singleton_server.newConnection.connect(_on_singleton_connection)
 
     _pf_connect    = {"twitch": connect_twitch,    "youtube": connect_youtube,    "kick": connect_kick}
     _pf_disconnect = {"twitch": disconnect_twitch, "youtube": disconnect_youtube, "kick": disconnect_kick}

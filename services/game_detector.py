@@ -20,40 +20,9 @@ PROCESS_MAP: dict[str, str] = {
     "Minecraft.Windows.exe":                 "minecraft",
 }
 
-MOCK_KDA: dict[str, dict] = {
-    "valorant":     {"k": 8,  "d": 2, "a": 5,  "agent": "Jett",    "rank": "Diamond II"},
-    "league":       {"k": 12, "d": 4, "a": 18, "agent": "Jinx",    "rank": "Platinum I"},
-    "cs2":          {"k": 24, "d": 10,"a": 0,  "agent": "CT",      "rank": "MG1"},
-    "fortnite":     {"k": 6,  "d": 1, "a": 0,  "agent": "Jonesy",  "rank": "Champion"},
-    "apex":         {"k": 9,  "d": 1, "a": 4,  "agent": "Wraith",  "rank": "Diamond"},
-    "gta":          {"k": 0,  "d": 0, "a": 0,  "agent": "",        "rank": "Online"},
-    "overwatch":    {"k": 28, "d": 7, "a": 0,  "agent": "Tracer",  "rank": "Master"},
-    "dota2":        {"k": 14, "d": 5, "a": 22, "agent": "Pudge",   "rank": "Ancient 3"},
-    "rocket_league":{"k": 3,  "d": 2, "a": 1,  "agent": "",        "rank": "Diamond III"},
-    "cod":          {"k": 18, "d": 8, "a": 0,  "agent": "",        "rank": "Top 250"},
-    "dbd":          {"k": 4,  "d": 0, "a": 0,  "agent": "Trapper", "rank": "Iri I"},
-    "hearthstone":  {"k": 0,  "d": 0, "a": 0,  "agent": "Warrior", "rank": "Legend"},
-    "pubg":         {"k": 5,  "d": 1, "a": 0,  "agent": "",        "rank": "Top 100"},
-    "minecraft":    {"k": 0,  "d": 2, "a": 0,  "agent": "Survival","rank": ""},
-    "default":      {"k": 0,  "d": 0, "a": 0,  "agent": "",        "rank": ""},
-}
-
-MOCK_HISTORY: dict[str, list] = {
-    "valorant":  [
-        {"k": 12,"d": 3, "a": 7,  "win": True},
-        {"k": 5, "d": 8, "a": 2,  "win": False},
-        {"k": 18,"d": 1, "a": 10, "win": True},
-        {"k": 8, "d": 6, "a": 4,  "win": True},
-        {"k": 3, "d": 9, "a": 1,  "win": False},
-    ],
-    "default": [
-        {"k": 8, "d": 4, "a": 6,  "win": True},
-        {"k": 6, "d": 7, "a": 3,  "win": False},
-        {"k": 14,"d": 2, "a": 8,  "win": True},
-        {"k": 5, "d": 8, "a": 1,  "win": False},
-        {"k": 10,"d": 3, "a": 5,  "win": True},
-    ],
-}
+# Stats vides : affichées tant qu'aucun service réel (Riot, CS2 GSI,
+# Steam) n'a fourni de vraies données. Aucune stat fictive.
+_EMPTY_KDA: dict = {"k": "--", "d": "--", "a": "--", "agent": "", "rank": ""}
 
 
 class GameDetector(QObject):
@@ -75,15 +44,11 @@ class GameDetector(QObject):
         self._scan()
 
     def current_kda(self) -> dict:
-        if not self._current_key:
-            # Aucun jeu détecté — on affiche rien
-            return {"k": "--", "d": "--", "a": "--", "agent": "", "rank": ""}
-        return MOCK_KDA.get(self._current_key, MOCK_KDA["default"])
+        # Pas de stats fictives : les vraies viennent des services API.
+        return dict(_EMPTY_KDA)
 
     def current_history(self) -> list:
-        if not self._current_key:
-            return []
-        return MOCK_HISTORY.get(self._current_key, MOCK_HISTORY["default"])
+        return []
 
     def current_theme(self) -> GameTheme:
         return THEMES.get(self._current_key or "default", THEMES["default"])

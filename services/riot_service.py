@@ -134,7 +134,7 @@ class RiotService(QObject):
                 f"https://{regional}.api.riotgames.com"
                 f"/riot/account/v1/accounts/by-riot-id/{name}/{tag}",
                 headers={"X-Riot-Token": RIOT_API_KEY},
-                timeout=8, verify=False,
+                timeout=8,
             )
             if r.status_code == 200:
                 puuid = r.json().get("puuid", "")
@@ -153,7 +153,7 @@ class RiotService(QObject):
     def _get(self, url: str, params: dict | None = None) -> dict | None:
         try:
             r = httpx.get(url, params=params, headers=self._headers(),
-                          timeout=8, verify=False)
+                          timeout=8)
             return r.json() if r.status_code == 200 else None
         except Exception as e:
             log.error("HTTP erreur %s : %s", url, e)

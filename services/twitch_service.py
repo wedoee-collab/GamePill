@@ -138,13 +138,13 @@ class TwitchService(QObject):
     def _get(self, path: str, params: dict, headers: dict) -> dict | None:
         try:
             r = httpx.get(f"{API}{path}", params=params, headers=headers,
-                          timeout=5, verify=False)
+                          timeout=5)
             if r.status_code == 401:
                 if self._auth.refresh():
                     h2 = self._headers()
                     if h2:
                         r = httpx.get(f"{API}{path}", params=params, headers=h2,
-                                      timeout=5, verify=False)
+                                      timeout=5)
                     else:
                         QTimer.singleShot(0, self.connection_lost.emit)
                         return None

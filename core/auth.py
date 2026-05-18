@@ -264,7 +264,7 @@ class TwitchAuth:
                 payload["client_secret"] = TWITCH_CLIENT_SECRET
             elif verifier:
                 payload["code_verifier"] = verifier
-            r = httpx.post(TOKEN_URL, data=payload, timeout=10, verify=False)
+            r = httpx.post(TOKEN_URL, data=payload, timeout=10)
             if r.status_code != 200:
                 log.error("Échange token échoué : HTTP %d — %s", r.status_code, r.text[:300])
                 return False
@@ -284,7 +284,7 @@ class TwitchAuth:
             r = httpx.get(f"{API_URL}/users", headers={
                 "Authorization": f"Bearer {access_token}",
                 "Client-Id":     self.client_id,
-            }, timeout=5, verify=False)
+            }, timeout=5)
             if r.status_code == 200:
                 data = r.json().get("data", [])
                 if data:
@@ -307,7 +307,7 @@ class TwitchAuth:
             }
             if TWITCH_CLIENT_SECRET:
                 refresh_payload["client_secret"] = TWITCH_CLIENT_SECRET
-            r = httpx.post(TOKEN_URL, data=refresh_payload, timeout=10, verify=False)
+            r = httpx.post(TOKEN_URL, data=refresh_payload, timeout=10)
             r.raise_for_status()
             d = r.json()
             self._save(d["access_token"], d.get("refresh_token", rt))
@@ -328,7 +328,7 @@ class TwitchAuth:
             r = httpx.get(f"{API_URL}/users", headers={
                 "Authorization": f"Bearer {token}",
                 "Client-Id":     self.client_id,
-            }, timeout=5, verify=False)
+            }, timeout=5)
             if r.status_code == 200:
                 return True
             if r.status_code == 401:

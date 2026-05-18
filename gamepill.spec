@@ -12,14 +12,14 @@ a = Analysis(
     pathex=[str(Path(".").resolve())],
     binaries=[],
     datas=[
-        # Inclure le dossier website si tu veux servir les pages locally plus tard
-        # ("website", "website"),
+        ("assets/gamepill.ico", "assets"),
     ],
     hiddenimports=[
         # PyQt6 plugins
         "PyQt6.QtWidgets",
         "PyQt6.QtCore",
         "PyQt6.QtGui",
+        "PyQt6.QtNetwork",
         "PyQt6.sip",
         # Services
         "services.twitch_service",
@@ -51,6 +51,7 @@ a = Analysis(
         "ui.onboarding",
         # Deps
         "httpx",
+        "truststore",
         "websocket",
         "websocket._exceptions",
         "psutil",

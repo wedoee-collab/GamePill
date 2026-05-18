@@ -212,7 +212,7 @@ class ExpandedContent(QWidget):
         self._theme = theme
         self._kda = kda
 
-        has_game = bool(kda) and str(kda.get("k", "--")) != "--"
+        has_game = theme is not THEMES["default"]
 
         # Titre du jeu
         if has_game:
