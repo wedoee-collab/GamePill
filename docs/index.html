@@ -469,6 +469,11 @@
     footer .logo { display:flex; align-items:center; gap:8px; font-size:15px; font-weight:700; }
     footer .logo span { color:var(--gold); }
     footer p { font-size:12px; color:var(--dim); }
+    footer a {
+      color:#a855ff; text-decoration:none; font-weight:600;
+      transition:color .2s;
+    }
+    footer a:hover { color:#c084fc; }
 
     @media(max-width:768px){
       .fs-inner { grid-template-columns:1fr; gap:48px; }
@@ -793,7 +798,7 @@
 <footer>
   <div class="logo"><img src="assets/icon.png" alt="" class="brand-icon"/>Game<span>Pill</span></div>
   <p>© 2026 GamePill · Tous droits réservés · v1.0.0 · Fait par sm0ke</p>
-  <p style="font-size:12px;color:var(--dim)">wedoee-collab.github.io/GamePill</p>
+  <p><a href="https://discord.gg/CDYxatRaNE" target="_blank" rel="noopener">Rejoindre le Discord</a></p>
 </footer>
 
 <script>
