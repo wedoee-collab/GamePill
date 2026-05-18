@@ -12,6 +12,9 @@ from PyQt6.QtCore import QObject, QTimer, pyqtSignal
 
 from core.config import Config
 from core.constants import RIOT_API_KEY
+import core.logger as _log_mod
+
+log = _log_mod.get("riot")
 
 # Jeux supportés par ce service
 SUPPORTED_GAMES = {"valorant", "league"}
@@ -113,7 +116,7 @@ class RiotService(QObject):
                 kda, history = result
                 QTimer.singleShot(0, lambda: self.data_updated.emit(game, kda, history))
         except Exception as e:
-            print(f"[Riot] Erreur fetch {game} : {e}")
+            log.error("Erreur fetch %s : %s", game, e)
 
     # ── PUUID (partagé Valorant + LoL) ───────────────────────────────
 
@@ -139,9 +142,9 @@ class RiotService(QObject):
                     self._puuid_cache[game_key] = puuid
                     return puuid
             else:
-                print(f"[Riot] PUUID HTTP {r.status_code} : {r.text[:150]}")
+                log.warning("PUUID HTTP %d : %s", r.status_code, r.text[:150])
         except Exception as e:
-            print(f"[Riot] PUUID erreur : {e}")
+            log.error("PUUID erreur : %s", e)
         return None
 
     def _headers(self) -> dict:
@@ -153,7 +156,7 @@ class RiotService(QObject):
                           timeout=8, verify=False)
             return r.json() if r.status_code == 200 else None
         except Exception as e:
-            print(f"[Riot] HTTP erreur {url} : {e}")
+            log.error("HTTP erreur %s : %s", url, e)
             return None
 
     # ── Valorant ──────────────────────────────────────────────────────

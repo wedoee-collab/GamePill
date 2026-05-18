@@ -25,11 +25,11 @@ class SteamData:
     persona:     str   = ""
     kills:       int   = 0
     deaths:      int   = 0
-    assists:     int   = 0
-    wins:        int   = 0
+    wins:        int   = 0   # matchs gagnés
     hs_kills:    int   = 0
     shots_hit:   int   = 0
     shots_fired: int   = 0
+    # NB : l'API Steam GetUserStatsForGame n'expose pas les assists pour CS2.
 
     def kd_fmt(self) -> str:
         if not self.deaths:
@@ -96,13 +96,12 @@ class SteamService(QObject):
             stats = {s["name"]: s["value"] for s in stats_list}
 
             d = SteamData(steam_id=steam_id)
-            d.kills       = stats.get("total_kills",       0)
-            d.deaths      = stats.get("total_deaths",      0)
-            d.assists      = stats.get("total_assists",     0)
-            d.wins        = stats.get("total_wins_map",    0) or stats.get("total_wins", 0)
-            d.hs_kills    = stats.get("total_kills_headshot", 0)
-            d.shots_hit   = stats.get("total_shots_hit",   0)
-            d.shots_fired = stats.get("total_shots_fired", 0)
+            d.kills       = stats.get("total_kills",           0)
+            d.deaths      = stats.get("total_deaths",          0)
+            d.wins        = stats.get("total_matches_won",     0)
+            d.hs_kills    = stats.get("total_kills_headshot",  0)
+            d.shots_hit   = stats.get("total_shots_hit",       0)
+            d.shots_fired = stats.get("total_shots_fired",     0)
 
             self._data = d
             log.info("Steam stats — K:%d D:%d KD:%s HS:%s",

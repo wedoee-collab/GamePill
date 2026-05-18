@@ -39,7 +39,7 @@ from services.youtube_service import YouTubeService, resolve_channel
 from services.kick_service import KickService
 from services.cs2_service import CS2GSI
 from services.steam_service import SteamService
-from services.riot_service import RiotService, SUPPORTED_GAMES as RIOT_GAMES
+from services.riot_service import RiotService
 from core.auth import TwitchAuth
 from core.config import Config
 from core.themes import THEMES
@@ -203,7 +203,7 @@ def main():
         kda = {
             "k":     d.kills,
             "d":     d.deaths,
-            "a":     d.assists,
+            "a":     "--",          # assists non exposés par l'API Steam CS2
             "score": d.kd_fmt(),
             "hs":    d.hs_pct(),
             "agent": "À vie",

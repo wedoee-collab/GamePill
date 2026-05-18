@@ -14,7 +14,7 @@ from PyQt6.QtCore import QObject, QTimer, pyqtSignal
 import core.logger as _log_mod
 log = _log_mod.get("eventsub")
 
-EVENTSUB_WS  = "wss://eventsub.wapi.twitch.tv/ws"
+EVENTSUB_WS  = "wss://eventsub.twitch.tv/ws"
 HELIX_SUBS   = "https://api.twitch.tv/helix/eventsub/subscriptions"
 
 

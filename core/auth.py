@@ -19,6 +19,9 @@ from cryptography.fernet import Fernet
 
 from core.config import Config
 from core.constants import TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET
+import core.logger as _log_mod
+
+log = _log_mod.get("auth")
 
 SCOPES   = "channel:read:subscriptions moderator:read:followers user:read:email"
 AUTH_URL = "https://id.twitch.tv/oauth2/authorize"
@@ -114,7 +117,7 @@ class TwitchAuth:
         try:
             return self._fernet.decrypt(v.encode()).decode()
         except Exception as e:
-            print(f"[Auth] Déchiffrement échoué ({type(e).__name__}) — tokens invalidés")
+            log.warning("Déchiffrement échoué (%s) — tokens invalidés", type(e).__name__)
             return None
 
     # ── Propriétés ───────────────────────────────────────────────────
@@ -150,12 +153,12 @@ class TwitchAuth:
     def _oauth_worker(self, on_success, on_failure):
         from PyQt6.QtCore import QTimer
         try:
-            print("[Auth] Démarrage flow OAuth…")
+            log.info("Démarrage flow OAuth")
             ok = self._do_oauth()
-            print(f"[Auth] Flow OAuth terminé → {'succès' if ok else 'échec'}")
+            log.info("Flow OAuth terminé → %s", "succès" if ok else "échec")
             QTimer.singleShot(0, on_success if ok else on_failure)
         except Exception as e:
-            print(f"[Auth] Erreur OAuth : {e}")
+            log.error("Erreur OAuth : %s", e)
             QTimer.singleShot(0, on_failure)
 
     def _do_oauth(self) -> bool:
@@ -176,7 +179,7 @@ class TwitchAuth:
                 continue
 
         if port is None:
-            print("[Auth] Aucun port disponible pour le callback OAuth")
+            log.error("Aucun port disponible pour le callback OAuth")
             return False
 
         redirect_uri = f"http://localhost:{port}/callback"
@@ -212,7 +215,7 @@ class TwitchAuth:
                 # Vérification du state pour prévenir les attaques CSRF
                 received_state = qparams.get("state", [""])[0]
                 if received_state != state:
-                    print("[Auth] State OAuth invalide — requête ignorée")
+                    log.warning("State OAuth invalide — requête ignorée")
                     self.send_response(400)
                     self.end_headers()
                     return
@@ -242,10 +245,10 @@ class TwitchAuth:
         srv.server_close()
 
         if error_box[0]:
-            print(f"[Auth] Accès refusé par l'utilisateur : {error_box[0]}")
+            log.warning("Accès refusé par l'utilisateur : %s", error_box[0])
             return False
         if not code_box[0]:
-            print("[Auth] Aucun code reçu après timeout")
+            log.warning("Aucun code reçu après timeout")
             return False
         return self._exchange(code_box[0], verifier if use_pkce else None, redirect_uri)
 
@@ -263,17 +266,17 @@ class TwitchAuth:
                 payload["code_verifier"] = verifier
             r = httpx.post(TOKEN_URL, data=payload, timeout=10, verify=False)
             if r.status_code != 200:
-                print(f"[Auth] Échange token échoué : HTTP {r.status_code} — {r.text[:300]}")
+                log.error("Échange token échoué : HTTP %d — %s", r.status_code, r.text[:300])
                 return False
             d = r.json()
             if "access_token" not in d:
-                print("[Auth] Pas de access_token dans la réponse Twitch")
+                log.error("Pas de access_token dans la réponse Twitch")
                 return False
             self._save(d["access_token"], d.get("refresh_token", ""))
             self._fetch_and_save_username(d["access_token"])
             return True
         except Exception as e:
-            print(f"[Auth] Échange token échoué : {e}")
+            log.error("Échange token échoué : %s", e)
             return False
 
     def _fetch_and_save_username(self, access_token: str):
@@ -288,7 +291,7 @@ class TwitchAuth:
                     self._config.set("twitch_username",      data[0]["login"])
                     self._config.set("twitch_display_name",  data[0]["display_name"])
         except Exception as e:
-            print(f"[Auth] Impossible de récupérer le username : {e}")
+            log.warning("Impossible de récupérer le username : %s", e)
 
     # ── Refresh ───────────────────────────────────────────────────────
 

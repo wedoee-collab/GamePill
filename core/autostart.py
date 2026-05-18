@@ -1,4 +1,4 @@
-"""
+r"""
 Gestion du démarrage automatique avec Windows via le registre.
 Clé : HKCU\Software\Microsoft\Windows\CurrentVersion\Run
 """
@@ -6,6 +6,10 @@ Clé : HKCU\Software\Microsoft\Windows\CurrentVersion\Run
 import os
 import sys
 import winreg
+
+import core.logger as _log_mod
+
+log = _log_mod.get("autostart")
 
 APP_NAME = "GamePill"
 
@@ -45,20 +49,20 @@ def enable():
     try:
         with _open_run_key(write=True) as key:
             winreg.SetValueEx(key, APP_NAME, 0, winreg.REG_SZ, _app_command())
-        print(f"[Autostart] Activé → {_app_command()}")
+        log.info("Autostart activé → %s", _app_command())
     except Exception as e:
-        print(f"[Autostart] Impossible d'activer : {e}")
+        log.error("Impossible d'activer l'autostart : %s", e)
 
 
 def disable():
     try:
         with _open_run_key(write=True) as key:
             winreg.DeleteValue(key, APP_NAME)
-        print("[Autostart] Désactivé")
+        log.info("Autostart désactivé")
     except FileNotFoundError:
         pass
     except Exception as e:
-        print(f"[Autostart] Impossible de désactiver : {e}")
+        log.error("Impossible de désactiver l'autostart : %s", e)
 
 
 def toggle() -> bool:
