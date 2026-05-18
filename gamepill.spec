@@ -30,6 +30,7 @@ a = Analysis(
         "services.cs2_service",
         "services.steam_service",
         "services.game_detector",
+        "services.updater",
         # Core
         "core.auth",
         "core.steam_auth",
@@ -38,6 +39,7 @@ a = Analysis(
         "core.themes",
         "core.autostart",
         "core.logger",
+        "core.version",
         # UI
         "ui.pill_widget",
         "ui.expanded_widget",

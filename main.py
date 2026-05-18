@@ -40,6 +40,8 @@ from services.kick_service import KickService
 from services.cs2_service import CS2GSI
 from services.steam_service import SteamService
 from services.riot_service import RiotService
+from services.updater import Updater
+from core.version import APP_VERSION
 from core.auth import TwitchAuth
 from core.config import Config
 from core.themes import THEMES
@@ -167,6 +169,7 @@ def main():
     steam_svc   = SteamService(config)
     detector    = GameDetector()
     riot        = RiotService(config)
+    updater     = Updater()
 
     pill = PillWidget(THEMES["default"], config)
 
@@ -313,6 +316,72 @@ def main():
 
     act_autostart.triggered.connect(_toggle_autostart)
     menu.addAction(act_autostart)
+
+    # ── Mises à jour ──────────────────────────────────────────────────
+    act_check_update = QAction(_dot_icon("#5b8def"), "  Vérifier les mises à jour", app)
+    act_do_update    = QAction(_dot_icon("#34c759"), "  Installer la mise à jour", app)
+    act_do_update.setVisible(False)
+    menu.addAction(act_check_update)
+    menu.addAction(act_do_update)
+
+    _pending_update = {"url": "", "version": ""}
+    _manual_check   = [False]   # True = vérification déclenchée manuellement
+
+    def on_update_available(version: str, url: str):
+        _pending_update["url"]     = url
+        _pending_update["version"] = version
+        _manual_check[0] = False
+        act_do_update.setText(f"  Installer la mise à jour ({version})")
+        act_do_update.setVisible(True)
+        tray.showMessage("GamePill", f"Nouvelle version {version} disponible !",
+                         QSystemTrayIcon.MessageIcon.Information, 6000)
+
+    def on_no_update():
+        if _manual_check[0]:
+            tray.showMessage("GamePill", f"GamePill est à jour (v{APP_VERSION}).",
+                             QSystemTrayIcon.MessageIcon.Information, 3000)
+        _manual_check[0] = False
+
+    def on_check_failed(msg: str):
+        if _manual_check[0]:
+            tray.showMessage("GamePill", f"Vérification impossible : {msg}",
+                             QSystemTrayIcon.MessageIcon.Warning, 3000)
+        _manual_check[0] = False
+
+    def check_updates_manual():
+        _manual_check[0] = True
+        tray.showMessage("GamePill", "Recherche de mises à jour…",
+                         QSystemTrayIcon.MessageIcon.Information, 2000)
+        updater.check()
+
+    def do_update():
+        url     = _pending_update["url"]
+        version = _pending_update["version"]
+        if not url:
+            return
+        reply = QMessageBox.question(
+            None, "GamePill — Mise à jour",
+            f"Installer la version {version} ?\n\n"
+            "GamePill va se fermer, se mettre à jour puis redémarrer.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        act_do_update.setEnabled(False)
+        tray.showMessage("GamePill", "Téléchargement de la mise à jour…",
+                         QSystemTrayIcon.MessageIcon.Information, 5000)
+
+        def _err(msg: str):
+            act_do_update.setEnabled(True)
+            QMessageBox.warning(None, "GamePill", f"Mise à jour échouée :\n{msg}")
+
+        updater.download_and_apply(url, on_done=app.quit, on_error=_err)
+
+    updater.update_available.connect(on_update_available)
+    updater.no_update.connect(on_no_update)
+    updater.check_failed.connect(on_check_failed)
+    act_check_update.triggered.connect(check_updates_manual)
+    act_do_update.triggered.connect(do_update)
 
     menu.addSeparator()
 
@@ -757,10 +826,13 @@ def main():
     if steam_auth.is_connected and steam_svc.is_configured():
         QTimer.singleShot(1000, steam_svc.fetch)
 
+    # Vérification de mise à jour 8 s après le démarrage
+    QTimer.singleShot(8000, updater.check)
+
     tray.setContextMenu(menu)
     tray.show()
 
-    log.info("GamePill prêt — systray actif")
+    log.info("GamePill v%s prêt — systray actif", APP_VERSION)
     sys.exit(app.exec())
 
 
