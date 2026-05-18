@@ -18,7 +18,7 @@ import core.logger as _log_mod
 log = _log_mod.setup()
 
 from PyQt6.QtWidgets import (
-    QApplication, QSystemTrayIcon, QMenu, QMessageBox, QInputDialog,
+    QApplication, QSystemTrayIcon, QMenu, QMessageBox,
 )
 from PyQt6.QtGui import (
     QPainter, QPixmap, QColor, QIcon, QFont, QAction,
@@ -29,6 +29,8 @@ from PyQt6.QtCore import Qt, QTimer, QRectF
 from ui.pill_widget import PillWidget, PLATFORM_TWITCH, PLATFORM_YOUTUBE, PLATFORM_KICK, PLATFORM_NONE
 from ui.setup_dialog import TwitchConnectDialog
 from ui.youtube_dialog import YouTubeConnectDialog
+from ui.riot_dialog import RiotDialog
+from ui.kick_dialog import KickConnectDialog
 from ui.onboarding import OnboardingWizard, should_show as _should_onboard
 from services.game_detector import GameDetector
 from services.twitch_service import TwitchService
@@ -36,12 +38,14 @@ from services.twitch_eventsub import TwitchEventSub
 from services.youtube_service import YouTubeService, resolve_channel
 from services.kick_service import KickService
 from services.cs2_service import CS2GSI
+from services.steam_service import SteamService
 from services.riot_service import RiotService, SUPPORTED_GAMES as RIOT_GAMES
 from core.auth import TwitchAuth
 from core.config import Config
 from core.themes import THEMES
+from core.steam_auth import SteamAuth
 import core.autostart as autostart
-from core.constants import YOUTUBE_API_KEY, RIOT_API_KEY
+from core.constants import YOUTUBE_API_KEY, RIOT_API_KEY, STEAM_API_KEY
 
 def _dot_icon(hex_color: str, size: int = 12) -> QIcon:
     px = QPixmap(size, size)
@@ -154,11 +158,13 @@ def main():
 
     config      = Config()
     twitch_auth = TwitchAuth(config)
+    steam_auth  = SteamAuth(config)
     twitch      = TwitchService(twitch_auth, config)
     eventsub    = TwitchEventSub(twitch_auth)
     youtube     = YouTubeService(config)
     kick        = KickService(config)
     cs2_gsi     = CS2GSI()
+    steam_svc   = SteamService(config)
     detector    = GameDetector()
     riot        = RiotService(config)
 
@@ -242,7 +248,7 @@ def main():
     menu.addMenu(kick_menu)
 
     # ── Riot ──────────────────────────────────────────────────────────
-    riot_menu = QMenu("  Riot (Val / LoL)", menu)
+    riot_menu = QMenu("  Riot", menu)
     riot_menu.setStyleSheet(_MENU_STYLE)
     riot_menu.setIcon(_platform_icon("#C89B3C"))
     act_config_riot = QAction(_dot_icon("#C89B3C"), "  Configurer Riot ID", app)
@@ -251,16 +257,17 @@ def main():
     riot_menu.addAction(act_clear_riot)
     menu.addMenu(riot_menu)
 
-    if not RIOT_API_KEY:
-        act_config_riot.setEnabled(False)
-        act_config_riot.setText("  Configurer  (RIOT_API_KEY requis)")
-
     # ── CS2 ───────────────────────────────────────────────────────────
-    cs2_menu = QMenu("  CS2 GSI", menu)
+    cs2_menu = QMenu("  Steam", menu)
     cs2_menu.setStyleSheet(_MENU_STYLE)
     cs2_menu.setIcon(_platform_icon("#F5A623"))
-    act_cs2_start   = QAction(_dot_icon("#F5A623"), "  Activer GSI", app)
-    act_cs2_install = QAction(_dot_icon("#888899"), "  Installer gamepill.cfg", app)
+    act_steam_connect    = QAction(_dot_icon("#1b2838"), "  Connecter avec Steam", app)
+    act_steam_disconnect = QAction(_dot_icon("#444455"), "  Déconnecter Steam", app)
+    act_cs2_start        = QAction(_dot_icon("#F5A623"), "  Activer GSI", app)
+    act_cs2_install      = QAction(_dot_icon("#888899"), "  Installer gamepill.cfg", app)
+    cs2_menu.addAction(act_steam_connect)
+    cs2_menu.addAction(act_steam_disconnect)
+    cs2_menu.addSeparator()
     cs2_menu.addAction(act_cs2_start)
     cs2_menu.addAction(act_cs2_install)
     menu.addMenu(cs2_menu)
@@ -541,14 +548,10 @@ def main():
 
     # ── Actions Kick ─────────────────────────────────────────────────
     def connect_kick():
-        slug, ok = QInputDialog.getText(
-            None, "GamePill — Kick",
-            "Entre le slug de ta chaîne Kick :\n(ex : sm0ke → kick.com/sm0ke)",
-            text=config.get("kick_slug", ""),
-        )
-        if not ok or not slug.strip():
+        dlg = KickConnectDialog(current_slug=config.get("kick_slug", ""))
+        if dlg.exec() != KickConnectDialog.DialogCode.Accepted:
             return
-        slug = slug.strip().lower()
+        slug = dlg.slug_value
         config.set("kick_slug", slug)
         kick.stop()
         kick.start()
@@ -571,32 +574,20 @@ def main():
 
     # ── Actions Riot ─────────────────────────────────────────────────
     def config_riot():
-        regions = ["EUW", "EUNE", "NA", "KR", "BR", "TR", "RU", "JP", "OCE"]
-
-        existing = ""
-        if config.get("riot_game_name"):
-            existing = f"{config.get('riot_game_name', '')}#{config.get('riot_tag_line', '')}"
-
-        riot_id, ok = QInputDialog.getText(
-            None, "GamePill — Riot ID",
-            "Entre ton Riot ID (format: NomJoueur#TAG)\nEx: sm0ke#EUW",
-            text=existing,
+        dlg = RiotDialog(
+            game_name=config.get("riot_game_name", ""),
+            tag_line=config.get("riot_tag_line", ""),
+            region=config.get("riot_region", "EUW"),
         )
-        if not ok or not riot_id:
-            return
-        if "#" not in riot_id:
-            QMessageBox.warning(None, "GamePill", "Format invalide. Utilise NomJoueur#TAG")
+        if dlg.exec() != RiotDialog.DialogCode.Accepted:
             return
 
-        name, tag = riot_id.split("#", 1)
-        region, ok2 = QInputDialog.getItem(
-            None, "GamePill — Région", "Sélectionne ta région :", regions, 0, False
-        )
-        if not ok2:
-            return
+        name   = dlg.game_name
+        tag    = dlg.tag_line
+        region = dlg.region
 
-        config.set("riot_game_name", name.strip())
-        config.set("riot_tag_line",  tag.strip())
+        config.set("riot_game_name", name)
+        config.set("riot_tag_line",  tag)
         config.set("riot_region",    region)
         riot._puuid_cache.clear()
         log.info("Riot configuré : %s#%s (%s)", name, tag, region)
@@ -616,6 +607,44 @@ def main():
 
     act_config_riot.triggered.connect(config_riot)
     act_clear_riot.triggered.connect(clear_riot)
+
+    # ── Actions Steam ─────────────────────────────────────────────────
+    def connect_steam():
+        def _on_success():
+            sid = steam_auth.steam_id
+            log.info("Steam connecté — SteamID64 : %s", sid)
+            tray.showMessage("GamePill", f"✅ Steam connecté !",
+                             QSystemTrayIcon.MessageIcon.Information, 3000)
+            _update_steam_menu()
+            if steam_svc.is_configured():
+                steam_svc.fetch()
+
+        def _on_failure():
+            QMessageBox.warning(None, "GamePill", "Connexion Steam échouée.\nRéessaie.")
+            _update_steam_menu()
+
+        steam_auth.start_oauth(on_success=_on_success, on_failure=_on_failure)
+        tray.showMessage("GamePill", "Navigateur ouvert — connecte-toi à Steam.",
+                         QSystemTrayIcon.MessageIcon.Information, 5000)
+
+    def disconnect_steam():
+        steam_auth.disconnect()
+        _update_steam_menu()
+        tray.showMessage("GamePill", "Steam déconnecté.",
+                         QSystemTrayIcon.MessageIcon.Information, 2000)
+
+    def _update_steam_menu():
+        connected = steam_auth.is_connected
+        act_steam_connect.setEnabled(not connected)
+        act_steam_disconnect.setEnabled(connected)
+        if connected:
+            act_steam_connect.setText("  Steam connecté ✓")
+        else:
+            act_steam_connect.setText("  Connecter avec Steam")
+
+    _update_steam_menu()
+    act_steam_connect.triggered.connect(connect_steam)
+    act_steam_disconnect.triggered.connect(disconnect_steam)
 
     # ── Actions CS2 GSI ──────────────────────────────────────────────
     def cs2_toggle():
@@ -706,6 +735,9 @@ def main():
             pill.set_platform(PLATFORM_KICK)
         _refresh_status()
         QTimer.singleShot(700, kick.start)
+
+    if steam_auth.is_connected and steam_svc.is_configured():
+        QTimer.singleShot(1000, steam_svc.fetch)
 
     tray.setContextMenu(menu)
     tray.show()
