@@ -476,6 +476,31 @@
       nav .nav-links { display:none; }
       .hero h1 { letter-spacing:-2px; }
     }
+    /* ── GUIDE ── */
+    .guide-section { max-width:780px; margin:0 auto; padding:110px 24px; }
+    .guide-head { text-align:center; margin-bottom:54px; }
+    .guide-step {
+      display:flex; gap:22px; padding:26px 4px;
+      border-bottom:1px solid rgba(255,255,255,0.06);
+    }
+    .guide-step:last-child { border-bottom:none; }
+    .guide-num {
+      flex-shrink:0; width:42px; height:42px; border-radius:50%;
+      display:flex; align-items:center; justify-content:center;
+      font-size:17px; font-weight:800; color:#fff;
+      background:linear-gradient(135deg,var(--purple),#7B2FBE);
+      border:1px solid rgba(212,175,55,0.3);
+    }
+    .guide-step h3 {
+      font-size:19px; font-weight:700; letter-spacing:-0.3px; margin-bottom:8px;
+    }
+    .guide-step p { font-size:15px; color:var(--muted); line-height:1.7; }
+    .guide-tip {
+      margin-top:12px; font-size:13.5px; color:rgba(245,245,247,0.7);
+      background:rgba(145,70,255,0.08);
+      border:1px solid rgba(145,70,255,0.18);
+      border-radius:12px; padding:11px 15px; line-height:1.6;
+    }
   </style>
 </head>
 <body>
@@ -487,6 +512,7 @@
     <a href="#stream">Stream</a>
     <a href="#jeux">Jeux</a>
     <a href="#plateformes">Plateformes</a>
+    <a href="#guide">Guide</a>
   </div>
   <a href="https://github.com/wedoee-collab/GamePill/releases/latest/download/GamePillSetup.exe" class="nav-dl">Télécharger</a>
 </nav>
@@ -677,6 +703,65 @@
         <div class="cs2-line"><span class="cs2-key">Round</span><span class="cs2-val white">Freezetime</span></div>
         <div class="cs2-bar"><div class="cs2-bar-fill" id="hpBar"></div></div>
       </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- SECTION GUIDE -->
+<section class="guide-section" id="guide">
+  <div class="guide-head reveal">
+    <div class="fs-label">Prise en main</div>
+    <h2 class="fs-title">Simple comme bonjour.</h2>
+  </div>
+
+  <div class="guide-step reveal">
+    <div class="guide-num">1</div>
+    <div>
+      <h3>Télécharge et installe</h3>
+      <p>Clique sur « Télécharger », ouvre le fichier et suis l'assistant. C'est prêt en moins d'une minute, et GamePill arrive dans ton menu Démarrer.</p>
+      <div class="guide-tip">Si Windows affiche « Windows a protégé votre PC », clique sur « Informations complémentaires » puis « Exécuter quand même ». C'est normal pour une application récente.</div>
+    </div>
+  </div>
+
+  <div class="guide-step reveal">
+    <div class="guide-num">2</div>
+    <div>
+      <h3>Lance GamePill</h3>
+      <p>Une petite barre noire arrondie apparaît en haut de ton écran : c'est la pill. Elle reste là en permanence, sans gêner ton jeu.</p>
+    </div>
+  </div>
+
+  <div class="guide-step reveal">
+    <div class="guide-num">3</div>
+    <div>
+      <h3>Utilise la pill</h3>
+      <p>Clic gauche sur la barre pour l'agrandir et voir le détail. Clic droit maintenu pour la déplacer où tu veux. Elle se referme toute seule après quelques secondes.</p>
+    </div>
+  </div>
+
+  <div class="guide-step reveal">
+    <div class="guide-num">4</div>
+    <div>
+      <h3>Connecte tes comptes</h3>
+      <p>En bas à droite de l'écran, près de l'horloge, double-clique sur l'icône GamePill : la fenêtre Réglages s'ouvre. Dans « Plateformes », connecte Twitch, YouTube ou Kick en un clic.</p>
+    </div>
+  </div>
+
+  <div class="guide-step reveal">
+    <div class="guide-num">5</div>
+    <div>
+      <h3>Personnalise</h3>
+      <p>Toujours dans les Réglages : choisis les jeux à suivre, ce que la pill affiche (viewers, KDA, nom du jeu) et active les alertes follow, sub et raid.</p>
+    </div>
+  </div>
+
+  <div class="guide-step reveal">
+    <div class="guide-num">6</div>
+    <div>
+      <h3>Au quotidien</h3>
+      <p>Les mises à jour sont automatiques, tu n'as rien à faire. Pour fermer GamePill : clic droit sur l'icône en bas à droite, puis « Quitter ».</p>
     </div>
   </div>
 </section>
