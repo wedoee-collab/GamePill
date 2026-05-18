@@ -162,6 +162,13 @@ class PillWidget(QWidget):
         self._alt_held = False
         self._first_show = True
         self._current_platform = PLATFORM_NONE   # pour la couleur de bordure
+        self._display = {
+            "show_viewers": self._config.get("show_viewers", True),
+            "show_peak":    self._config.get("show_peak", True),
+            "show_game":    self._config.get("show_game", True),
+            "show_kda":     self._config.get("show_kda", True),
+        }
+        self._st = {"platform": False, "peak": False, "game": False}
 
         self._init_window()
         self._build_ui()
@@ -263,6 +270,7 @@ class PillWidget(QWidget):
         root.addWidget(self._exp)
 
         self._refresh_bar_text()
+        self._apply_display()
 
     def _vsep(self) -> QFrame:
         s = QFrame()
@@ -275,6 +283,22 @@ class PillWidget(QWidget):
         self._game_lbl.setText("En attente…")
         self._game_lbl.setStyleSheet("color: rgba(255,255,255,80); background: transparent;")
         self._kda_lbl.setText("")
+
+    # ── Affichage configurable ────────────────────────────────────────
+
+    def set_display_options(self, opts: dict):
+        """Met à jour les éléments visibles de la pill (depuis les réglages)."""
+        self._display.update(opts)
+        self._apply_display()
+
+    def _apply_display(self):
+        d = self._display
+        self._viewers_lbl.setVisible(self._st["platform"] and d.get("show_viewers", True))
+        self._peak_lbl.setVisible(self._st["peak"] and d.get("show_peak", True))
+        self._game_lbl.setVisible(d.get("show_game", True))
+        self._kda_lbl.setVisible(self._st["game"] and d.get("show_kda", True))
+        self._sep1.setVisible(self._st["platform"])
+        self._sep2.setVisible(self._st["game"] and d.get("show_game", True))
 
     # ── Animations ────────────────────────────────────────────────────
 
@@ -410,10 +434,10 @@ class PillWidget(QWidget):
         self._current_platform = platform
         connected = platform != PLATFORM_NONE
         self._platform_icon.set_platform(platform)
-        self._sep1.setVisible(connected)
-        self._viewers_lbl.setVisible(connected)
+        self._st["platform"] = connected
         if not connected:
-            self._peak_lbl.setVisible(False)
+            self._st["peak"] = False
+        self._apply_display()
         self.update()   # redessine la bordure avec la bonne couleur
 
     # ── Live data ─────────────────────────────────────────────────────
@@ -425,9 +449,9 @@ class PillWidget(QWidget):
         # Peak — affiché uniquement si > viewers actuel et stream live
         if is_live and peak and peak != viewers:
             self._peak_lbl.setText(f" ↑{peak}")
-            self._peak_lbl.setVisible(True)
+            self._st["peak"] = True
         else:
-            self._peak_lbl.setVisible(False)
+            self._st["peak"] = False
         self._exp.update_stream_data(
             viewers    = viewers,
             duration   = duration,
@@ -435,10 +459,13 @@ class PillWidget(QWidget):
             is_live    = is_live,
             session    = session or {},
         )
+        self._apply_display()
 
     def reset_live_data(self, platform: str = PLATFORM_NONE):
         self._viewers_lbl.setText("--")
         self._exp.update_stream_data("--", "--", "", False)
+        self._st["peak"] = False
+        self._apply_display()
 
     # ── Theme ─────────────────────────────────────────────────────────
 
@@ -461,7 +488,9 @@ class PillWidget(QWidget):
             self._kda_lbl.setText("")
             self._sep2.setVisible(False)
 
+        self._st["game"] = has_game
         self._exp.apply_theme(theme, kda, history)
+        self._apply_display()
         self.update()
 
     # ── Paint ─────────────────────────────────────────────────────────

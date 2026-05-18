@@ -59,14 +59,19 @@ MOCK_HISTORY: dict[str, list] = {
 class GameDetector(QObject):
     game_changed = pyqtSignal(str, object)  # (game_key, GameTheme)
 
-    def __init__(self, parent=None):
+    def __init__(self, config=None, parent=None):
         super().__init__(parent)
+        self._config = config
         self._current_key: str | None = None
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._scan)
         self._timer.start(10_000)
 
     def start(self):
+        self._scan()
+
+    def rescan(self):
+        """Relance une détection immédiate (après un changement de réglages)."""
         self._scan()
 
     def current_kda(self) -> dict:
@@ -96,6 +101,12 @@ class GameDetector(QObject):
                     continue
         except Exception:
             pass  # psutil itself failed — keep previous state
+
+        # Jeux désactivés par l'utilisateur dans les réglages → ignorés
+        if detected and self._config:
+            disabled = self._config.get("games_disabled", []) or []
+            if detected in disabled:
+                detected = None
 
         if detected != self._current_key:
             self._current_key = detected

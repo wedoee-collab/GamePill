@@ -47,6 +47,7 @@ a = Analysis(
         "ui.youtube_dialog",
         "ui.riot_dialog",
         "ui.kick_dialog",
+        "ui.settings_window",
         "ui.onboarding",
         # Deps
         "httpx",

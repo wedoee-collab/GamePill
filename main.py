@@ -31,6 +31,7 @@ from ui.setup_dialog import TwitchConnectDialog
 from ui.youtube_dialog import YouTubeConnectDialog
 from ui.riot_dialog import RiotDialog
 from ui.kick_dialog import KickConnectDialog
+from ui.settings_window import SettingsWindow
 from ui.onboarding import OnboardingWizard, should_show as _should_onboard
 from services.game_detector import GameDetector
 from services.twitch_service import TwitchService
@@ -167,11 +168,13 @@ def main():
     kick        = KickService(config)
     cs2_gsi     = CS2GSI()
     steam_svc   = SteamService(config)
-    detector    = GameDetector()
+    detector    = GameDetector(config)
     riot        = RiotService(config)
     updater     = Updater()
 
     pill = PillWidget(THEMES["default"], config)
+    settings_window = SettingsWindow(config)
+    settings_window.setWindowIcon(_make_tray_icon())
 
     # ── Onboarding premier lancement ─────────────────────────────────
     if _should_onboard(config):
@@ -232,6 +235,10 @@ def main():
     status_action = QAction("⏸  Non connecté", app)
     status_action.setEnabled(False)
     menu.addAction(status_action)
+    menu.addSeparator()
+
+    act_settings = QAction(_dot_icon("#9146FF"), "  Réglages…", app)
+    menu.addAction(act_settings)
     menu.addSeparator()
 
     # ── Twitch ────────────────────────────────────────────────────────
@@ -427,26 +434,32 @@ def main():
             log.warning("_refresh_status : %s", e)
 
     # ── EventSub callbacks ───────────────────────────────────────────
+    def _alerts_on() -> bool:
+        return bool(config.get("alerts_enabled", True))
+
     def on_follow(username: str):
         log.info("EventSub follow : %s", username)
         twitch.add_follow(username)
-        pill.trigger_alert()
-        tray.showMessage("GamePill", f"🟣 Nouveau follow — {username}",
-                         QSystemTrayIcon.MessageIcon.Information, 3000)
+        if _alerts_on():
+            pill.trigger_alert()
+            tray.showMessage("GamePill", f"🟣 Nouveau follow — {username}",
+                             QSystemTrayIcon.MessageIcon.Information, 3000)
 
     def on_sub(username: str, is_gift: bool):
         log.info("EventSub sub : %s (gift=%s)", username, is_gift)
         twitch.add_sub(username, is_gift)
-        pill.trigger_alert()
-        label = f"🎁 Sub offert — {username}" if is_gift else f"⭐ Nouveau sub — {username}"
-        tray.showMessage("GamePill", label, QSystemTrayIcon.MessageIcon.Information, 3000)
+        if _alerts_on():
+            pill.trigger_alert()
+            label = f"🎁 Sub offert — {username}" if is_gift else f"⭐ Nouveau sub — {username}"
+            tray.showMessage("GamePill", label, QSystemTrayIcon.MessageIcon.Information, 3000)
 
     def on_raid(from_name: str, viewers: int):
         log.info("EventSub raid : %s avec %d viewers", from_name, viewers)
         twitch.add_raid(from_name, viewers)
-        pill.trigger_alert()
-        tray.showMessage("GamePill", f"🚀 Raid de {from_name} — {viewers} viewers",
-                         QSystemTrayIcon.MessageIcon.Information, 4000)
+        if _alerts_on():
+            pill.trigger_alert()
+            tray.showMessage("GamePill", f"🚀 Raid de {from_name} — {viewers} viewers",
+                             QSystemTrayIcon.MessageIcon.Information, 4000)
 
     eventsub.follow_received.connect(on_follow)
     eventsub.sub_received.connect(on_sub)
@@ -790,11 +803,75 @@ def main():
     act_cs2_start.triggered.connect(cs2_toggle)
     act_cs2_install.triggered.connect(cs2_install_cfg)
 
+    # ── Fenêtre de réglages ──────────────────────────────────────────
+    def _pill_display_opts() -> dict:
+        return {
+            "show_viewers": config.get("show_viewers", True),
+            "show_peak":    config.get("show_peak", True),
+            "show_game":    config.get("show_game", True),
+            "show_kda":     config.get("show_kda", True),
+        }
+
+    def _pick_pill_platform():
+        disabled = config.get("platforms_disabled", []) or []
+        if twitch_auth.is_connected and "twitch" not in disabled:
+            pill.set_platform(PLATFORM_TWITCH)
+        elif youtube.is_configured() and "youtube" not in disabled:
+            pill.set_platform(PLATFORM_YOUTUBE)
+        elif kick.is_configured() and "kick" not in disabled:
+            pill.set_platform(PLATFORM_KICK)
+        else:
+            pill.set_platform(PLATFORM_NONE)
+
+    def _apply_platform_states():
+        disabled = config.get("platforms_disabled", []) or []
+        if "twitch" in disabled:
+            twitch.stop(); eventsub.stop()
+        elif twitch_auth.is_connected and not twitch._timer.isActive():
+            twitch.start()
+        if "youtube" in disabled:
+            youtube.stop()
+        elif youtube.is_configured() and not youtube._search_timer.isActive():
+            youtube.start()
+        if "kick" in disabled:
+            kick.stop()
+        elif kick.is_configured() and not kick._timer.isActive():
+            kick.start()
+        _pick_pill_platform()
+
+    def on_settings_changed():
+        detector.rescan()
+        pill.set_display_options(_pill_display_opts())
+        _apply_platform_states()
+        _refresh_status()
+
+    def open_settings():
+        settings_window.refresh()
+        settings_window.show()
+        settings_window.raise_()
+        settings_window.activateWindow()
+
+    _pf_connect    = {"twitch": connect_twitch,    "youtube": connect_youtube,    "kick": connect_kick}
+    _pf_disconnect = {"twitch": disconnect_twitch, "youtube": disconnect_youtube, "kick": disconnect_kick}
+    settings_window.platform_connect.connect(lambda k: _pf_connect[k]())
+    settings_window.platform_disconnect.connect(lambda k: _pf_disconnect[k]())
+    settings_window.settings_changed.connect(on_settings_changed)
+    settings_window.check_updates.connect(check_updates_manual)
+    act_settings.triggered.connect(open_settings)
+
+    def on_tray_activated(reason):
+        if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
+            open_settings()
+    tray.activated.connect(on_tray_activated)
+
     # ── Démarrage ────────────────────────────────────────────────────
     pill.show()
+    pill.set_display_options(_pill_display_opts())
     detector.start()
 
-    if twitch_auth.is_connected:
+    _pf_disabled = config.get("platforms_disabled", []) or []
+
+    if twitch_auth.is_connected and "twitch" not in _pf_disabled:
         pill.set_platform(PLATFORM_TWITCH)
         _refresh_status()
 
@@ -811,13 +888,13 @@ def main():
 
         threading.Thread(target=_restore_twitch, daemon=True).start()
 
-    if youtube.is_configured():
+    if youtube.is_configured() and "youtube" not in _pf_disabled:
         if not twitch_auth.is_connected:
             pill.set_platform(PLATFORM_YOUTUBE)
         _refresh_status()
         QTimer.singleShot(500, youtube.start)
 
-    if kick.is_configured():
+    if kick.is_configured() and "kick" not in _pf_disabled:
         if not twitch_auth.is_connected and not youtube.is_configured():
             pill.set_platform(PLATFORM_KICK)
         _refresh_status()
@@ -825,6 +902,9 @@ def main():
 
     if steam_auth.is_connected and steam_svc.is_configured():
         QTimer.singleShot(1000, steam_svc.fetch)
+
+    # Cale la plateforme affichée selon les réglages
+    QTimer.singleShot(900, _pick_pill_platform)
 
     # Vérification de mise à jour 8 s après le démarrage
     QTimer.singleShot(8000, updater.check)
