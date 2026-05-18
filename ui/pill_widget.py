@@ -147,10 +147,12 @@ class _DotWidget(QWidget):
 
 
 class PillWidget(QWidget):
-    def __init__(self, theme: GameTheme = None):
+    def __init__(self, theme: GameTheme = None, config: Config = None):
         super().__init__()
         self._theme = theme or THEMES["default"]
-        self._config = Config()
+        # Config partagé avec main.py — créer une 2e instance écraserait
+        # le fichier config.json (chaque Config réécrit tout son _data).
+        self._config = config or Config()
         self._expanded = False
         self._drag_origin: QPoint | None = None
         self._pulse_phase = 0.0

@@ -168,7 +168,7 @@ def main():
     detector    = GameDetector()
     riot        = RiotService(config)
 
-    pill = PillWidget(THEMES["default"])
+    pill = PillWidget(THEMES["default"], config)
 
     # ── Onboarding premier lancement ─────────────────────────────────
     if _should_onboard(config):
