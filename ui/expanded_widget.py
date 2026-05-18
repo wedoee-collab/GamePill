@@ -25,8 +25,11 @@ class StatCard(QWidget):
         super().__init__()
         self._color = color
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.setStyleSheet("StatCard { background-color: rgba(255,255,255,7); border-radius: 10px; }")
-        self.setMinimumHeight(58)
+        self.setStyleSheet(
+            "StatCard { background-color: rgba(255,255,255,9);"
+            " border: 1px solid rgba(255,255,255,14); border-radius: 13px; }"
+        )
+        self.setMinimumHeight(60)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(6, 8, 6, 8)

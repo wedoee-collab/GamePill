@@ -2,6 +2,8 @@
 Fenêtre de réglages GamePill.
 Pilote les plateformes, les jeux détectés, l'affichage de la pill et les alertes.
 S'ouvre au double-clic sur l'icône du tray.
+
+Style : épuré, inspiré de macOS System Settings.
 """
 
 from PyQt6.QtWidgets import (
@@ -30,59 +32,88 @@ _DISPLAY = [
 
 _QSS = """
 QWidget {
-    background: #0c0c14;
-    color: #e8e8f0;
+    background: #0a0a11;
+    color: #ececf2;
     font-family: 'Segoe UI';
     font-size: 10pt;
 }
-QLabel#header {
-    background: #12121e;
+QLabel#title {
     color: #ffffff;
-    font-size: 15pt;
-    font-weight: 700;
-    border-bottom: 1px solid rgba(145,70,255,0.28);
-    padding-left: 20px;
+    font-size: 19pt;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+}
+QLabel#subtitle {
+    color: rgba(236,236,242,0.45);
+    font-size: 9.5pt;
 }
 QFrame#card {
-    background: #15151f;
-    border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 12px;
+    background: #14141d;
+    border: 1px solid rgba(255,255,255,0.055);
+    border-radius: 16px;
 }
 QLabel#sectionTitle {
-    color: #D4AF37;
+    color: rgba(236,236,242,0.45);
     font-size: 8pt;
     font-weight: 700;
-    letter-spacing: 2px;
+    letter-spacing: 2.5px;
 }
-QLabel#hint { color: rgba(255,255,255,0.40); font-size: 9pt; }
-QLabel#rowName { font-weight: 600; }
-QCheckBox { spacing: 8px; padding: 3px; }
+QLabel#hint   { color: rgba(236,236,242,0.38); font-size: 9pt; }
+QLabel#rowName{ font-size: 10.5pt; font-weight: 600; color: #f3f3f7; }
+QLabel#ver    { color: rgba(236,236,242,0.30); font-size: 9pt; }
+QLabel#hair   { background: rgba(255,255,255,0.06); }
+
+QCheckBox { spacing: 9px; padding: 4px 2px; color: #dcdce4; }
 QCheckBox::indicator {
-    width: 16px; height: 16px;
-    border-radius: 4px;
-    border: 1px solid rgba(255,255,255,0.25);
-    background: rgba(255,255,255,0.05);
+    width: 19px; height: 19px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.22);
+    background: rgba(255,255,255,0.045);
 }
+QCheckBox::indicator:hover { border-color: rgba(145,70,255,0.6); }
 QCheckBox::indicator:checked {
-    background: #9146FF;
+    background: qlineargradient(x1:0,y1:0,x2:0,y2:1,
+        stop:0 #a45dff, stop:1 #7d2fd6);
     border: 1px solid #9146FF;
 }
-QCheckBox:disabled { color: rgba(255,255,255,0.30); }
-QPushButton#smallBtn {
-    background: rgba(145,70,255,0.18);
-    border: 1px solid rgba(145,70,255,0.40);
-    border-radius: 8px;
-    padding: 5px 14px;
+QCheckBox:disabled { color: rgba(236,236,242,0.25); }
+QCheckBox::indicator:disabled {
+    border-color: rgba(255,255,255,0.10);
+    background: rgba(255,255,255,0.02);
+}
+
+QPushButton#btn {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 9px;
+    padding: 6px 16px;
+    color: #f3f3f7;
+    font-size: 9pt;
+    font-weight: 600;
+}
+QPushButton#btn:hover   { background: rgba(255,255,255,0.12); }
+QPushButton#btn:pressed { background: rgba(255,255,255,0.05); }
+
+QPushButton#btnAccent {
+    background: qlineargradient(x1:0,y1:0,x2:1,y2:0,
+        stop:0 #9146FF, stop:1 #7d2fd6);
+    border: 1px solid rgba(212,175,55,0.30);
+    border-radius: 9px;
+    padding: 6px 16px;
     color: #ffffff;
     font-size: 9pt;
+    font-weight: 700;
 }
-QPushButton#smallBtn:hover  { background: rgba(145,70,255,0.30); }
-QPushButton#smallBtn:pressed{ background: rgba(145,70,255,0.12); }
-QScrollArea { border: none; }
-QScrollBar:vertical { background: transparent; width: 8px; margin: 0; }
+QPushButton#btnAccent:hover   { background: #a45dff; }
+QPushButton#btnAccent:pressed { background: #7d2fd6; }
+
+QScrollArea { border: none; background: transparent; }
+QScrollArea > QWidget > QWidget { background: transparent; }
+QScrollBar:vertical { background: transparent; width: 10px; margin: 4px 2px; }
 QScrollBar::handle:vertical {
-    background: rgba(145,70,255,0.40); border-radius: 4px; min-height: 30px;
+    background: rgba(255,255,255,0.14); border-radius: 4px; min-height: 36px;
 }
+QScrollBar::handle:vertical:hover { background: rgba(255,255,255,0.22); }
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
 QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: transparent; }
 """
@@ -102,7 +133,7 @@ class SettingsWindow(QWidget):
         self._games   = {}
         self._disp    = {}
         self.setWindowTitle("Réglages GamePill")
-        self.setFixedSize(560, 740)
+        self.setFixedSize(560, 760)
         self.setStyleSheet(_QSS)
         self._build()
         self.refresh()
@@ -114,19 +145,43 @@ class SettingsWindow(QWidget):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
 
-        header = QLabel("Réglages")
-        header.setObjectName("header")
-        header.setFixedHeight(54)
+        # En-tête
+        header = QWidget()
+        header.setFixedHeight(96)
+        header.setStyleSheet(
+            "background: qlineargradient(x1:0,y1:0,x2:0,y2:1,"
+            "stop:0 #16111f, stop:1 #0a0a11);"
+        )
+        hl = QVBoxLayout(header)
+        hl.setContentsMargins(28, 22, 28, 0)
+        hl.setSpacing(2)
+        title = QLabel("Réglages")
+        title.setObjectName("title")
+        subtitle = QLabel("Personnalise ce que GamePill affiche et surveille.")
+        subtitle.setObjectName("subtitle")
+        hl.addWidget(title)
+        hl.addWidget(subtitle)
         root.addWidget(header)
 
+        accent = QFrame()
+        accent.setFixedHeight(2)
+        accent.setStyleSheet(
+            "background: qlineargradient(x1:0,y1:0,x2:1,y2:0,"
+            "stop:0 rgba(212,175,55,0.7), stop:0.35 rgba(145,70,255,0.5),"
+            "stop:1 rgba(145,70,255,0));"
+        )
+        root.addWidget(accent)
+
+        # Contenu défilant
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         content = QWidget()
         col = QVBoxLayout(content)
-        col.setContentsMargins(20, 18, 20, 24)
-        col.setSpacing(16)
+        col.setContentsMargins(22, 22, 22, 26)
+        col.setSpacing(18)
         col.addWidget(self._build_platforms())
         col.addWidget(self._build_games())
         col.addWidget(self._build_display())
@@ -141,35 +196,47 @@ class SettingsWindow(QWidget):
         card = QFrame()
         card.setObjectName("card")
         lay = QVBoxLayout(card)
-        lay.setContentsMargins(18, 14, 18, 16)
-        lay.setSpacing(10)
+        lay.setContentsMargins(22, 18, 22, 20)
+        lay.setSpacing(12)
         lbl = QLabel(title.upper())
         lbl.setObjectName("sectionTitle")
         lay.addWidget(lbl)
         return card, lay
+
+    def _hair(self) -> QFrame:
+        line = QFrame()
+        line.setObjectName("hair")
+        line.setFixedHeight(1)
+        return line
 
     def _build_platforms(self):
         card, lay = self._card("Plateformes")
         hint = QLabel("Décoche une plateforme pour la masquer sans te déconnecter.")
         hint.setObjectName("hint")
         lay.addWidget(hint)
-        for key, name, color in _PLATFORMS:
+
+        for idx, (key, name, color) in enumerate(_PLATFORMS):
+            if idx:
+                lay.addWidget(self._hair())
             row = QHBoxLayout()
-            row.setSpacing(10)
+            row.setContentsMargins(0, 4, 0, 4)
+            row.setSpacing(11)
 
             dot = QLabel("●")
             dot.setStyleSheet(f"color:{color}; font-size:13px;")
 
             nm = QLabel(name)
             nm.setObjectName("rowName")
-            nm.setFixedWidth(64)
+            nm.setFixedWidth(62)
 
             status = QLabel("…")
-            status.setFixedWidth(110)
+            status.setMinimumWidth(106)
+            status.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
             btn = QPushButton("…")
-            btn.setObjectName("smallBtn")
+            btn.setObjectName("btn")
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.setFixedWidth(108)
             btn.clicked.connect(lambda _, k=key: self._on_platform_btn(k))
 
             active = QCheckBox("Actif")
@@ -191,7 +258,8 @@ class SettingsWindow(QWidget):
         hint.setObjectName("hint")
         lay.addWidget(hint)
         grid = QGridLayout()
-        grid.setSpacing(6)
+        grid.setHorizontalSpacing(14)
+        grid.setVerticalSpacing(3)
         games = [(k, t.name) for k, t in THEMES.items() if k != "default"]
         for i, (key, name) in enumerate(games):
             cb = QCheckBox(name)
@@ -207,7 +275,8 @@ class SettingsWindow(QWidget):
         hint.setObjectName("hint")
         lay.addWidget(hint)
         grid = QGridLayout()
-        grid.setSpacing(6)
+        grid.setHorizontalSpacing(14)
+        grid.setVerticalSpacing(3)
         for i, (key, label) in enumerate(_DISPLAY):
             cb = QCheckBox(label)
             cb.toggled.connect(self._on_display_toggled)
@@ -218,7 +287,7 @@ class SettingsWindow(QWidget):
 
     def _build_alerts(self):
         card, lay = self._card("Alertes")
-        self._alerts_cb = QCheckBox("Alertes follow / sub / raid (animation et notification)")
+        self._alerts_cb = QCheckBox("Alertes follow / sub / raid  (animation et notification)")
         self._alerts_cb.toggled.connect(self._on_alerts_toggled)
         lay.addWidget(self._alerts_cb)
         return card
@@ -228,16 +297,18 @@ class SettingsWindow(QWidget):
         self._autostart_cb = QCheckBox("Démarrer GamePill avec Windows")
         self._autostart_cb.toggled.connect(self._on_autostart)
         lay.addWidget(self._autostart_cb)
+        lay.addWidget(self._hair())
 
         row = QHBoxLayout()
+        row.setContentsMargins(0, 2, 0, 0)
         upd = QPushButton("Vérifier les mises à jour")
-        upd.setObjectName("smallBtn")
+        upd.setObjectName("btn")
         upd.setCursor(Qt.CursorShape.PointingHandCursor)
         upd.clicked.connect(self.check_updates.emit)
         row.addWidget(upd)
         row.addStretch()
-        ver = QLabel(f"version {APP_VERSION}")
-        ver.setObjectName("hint")
+        ver = QLabel(f"GamePill {APP_VERSION}")
+        ver.setObjectName("ver")
         row.addWidget(ver)
         lay.addLayout(row)
         return card
@@ -258,10 +329,18 @@ class SettingsWindow(QWidget):
         pf_disabled = self._config.get("platforms_disabled", []) or []
         for key, w in self._pf.items():
             conn = self._is_connected(key)
-            w["status"].setText("Connecté" if conn else "Non connecté")
-            w["status"].setStyleSheet(
-                "color:#4ade80;" if conn else "color:rgba(255,255,255,0.40);"
-            )
+            if conn:
+                w["status"].setText("Connecté")
+                w["status"].setStyleSheet(
+                    "color:#5fd98a; background:rgba(95,217,138,0.12);"
+                    "border-radius:9px; padding:3px 12px; font-size:8.5pt; font-weight:600;"
+                )
+            else:
+                w["status"].setText("Non connecté")
+                w["status"].setStyleSheet(
+                    "color:rgba(236,236,242,0.40); background:rgba(255,255,255,0.05);"
+                    "border-radius:9px; padding:3px 12px; font-size:8.5pt;"
+                )
             w["btn"].setText("Déconnecter" if conn else "Connecter")
             w["active"].setEnabled(conn)
             w["active"].setChecked(conn and key not in pf_disabled)
